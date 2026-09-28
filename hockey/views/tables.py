@@ -365,6 +365,118 @@ def lineup_tables(team_name: str, r, now) -> list:
     return out
 
 
+def _status(owner: str | None) -> str:
+    return "[yellow]W[/]" if owner == "W" else "FA"
+
+
+def waiver_tables(team_name: str, r) -> list:
+    """Renderables for a WaiverReport (hockey/waivers/report.py)."""
+    out: list = [
+        f"[bold]{team_name}: waiver report[/] · {r.open_spots} open roster spot{'' if r.open_spots == 1 else 's'} · "
+        f"weekly numbers for period {r.period.number} ({r.period.start.astimezone():%a %b %d} → "
+        f"{r.period.end.astimezone():%a %b %d})"
+    ]
+
+    t = Table(
+        title="Best pickups for the rest of the season (gain = better starting lineup)", title_justify="left"
+    )
+    for col, just in [
+        ("Pick up", "left"),
+        ("Pos", "left"),
+        ("NHL", "left"),
+        ("", "left"),
+        ("FP/GP", "right"),
+        ("ROS FP", "right"),
+        ("Drop", "left"),
+        ("ROS gain", "right"),
+        ("Games wk", "right"),
+    ]:
+        t.add_column(col, justify=just, no_wrap=True)
+    for o in r.pickups:
+        p = o.pickup
+        t.add_row(
+            p.row.name,
+            p.row.positions,
+            p.row.nhl_team or "",
+            _status(p.row.owner),
+            f"{p.row.projection.fp_per_gp:.2f}",
+            f"{p.ros:.0f}",
+            o.drop.row.name if o.drop else "[green](open spot)[/]",
+            f"[bold]{o.gain:+.1f}[/]",
+            str(p.avail.games),
+        )
+    if not r.pickups:
+        t.add_row("[dim]No free agent improves your starting lineup[/]", *[""] * 8)
+    out.append(t)
+
+    b = Table(title="By position: your weakest starter vs the best available", title_justify="left")
+    for col, just in [
+        ("Slot", "left"),
+        ("Your weakest", "left"),
+        ("ROS FP", "right"),
+        ("Best available", "left"),
+        ("ROS FP", "right"),
+        ("ROS gain", "right"),
+    ]:
+        b.add_column(col, justify=just, no_wrap=True)
+    for row in r.by_position:
+        weak = row.weakest
+        best = row.best
+        b.add_row(
+            row.pos,
+            weak.row.name if weak else "[red](empty slot)[/]",
+            f"{weak.ros:.0f}" if weak else "–",
+            best.pickup.row.name if best else "[dim]nobody better[/]",
+            f"{best.pickup.ros:.0f}" if best else "",
+            f"{best.gain:+.1f}" if best else "",
+        )
+    out.append(b)
+
+    s = Table(
+        title=f"Streamers for period {r.period.number} (gain = better lineup this week)", title_justify="left"
+    )
+    for col, just in [
+        ("Stream", "left"),
+        ("Pos", "left"),
+        ("NHL", "left"),
+        ("", "left"),
+        ("Games", "right"),
+        ("Exp FP wk", "right"),
+        ("Drop", "left"),
+        ("Week gain", "right"),
+        ("ROS change", "right"),
+    ]:
+        s.add_column(col, justify=just, no_wrap=True)
+    for o in r.streamers:
+        p = o.pickup
+        s.add_row(
+            p.row.name,
+            p.row.positions,
+            p.row.nhl_team or "",
+            _status(p.row.owner),
+            _games_cell(p),
+            f"{p.week:.1f}",
+            o.drop.row.name if o.drop else "[green](open spot)[/]",
+            f"[bold]{o.gain:+.1f}[/]",
+            f"{o.ros_change:+.0f}",
+        )
+    if not r.streamers:
+        s.add_row("[dim]No streamer beats your lineup this week[/]", *[""] * 8)
+    out.append(s)
+
+    if r.density:
+        out.append(
+            "[bold]Games per team this period:[/] "
+            + " · ".join(f"{n}: {', '.join(teams)}" for n, teams in r.density.items())
+        )
+    out.append("[dim]Recommendations only: make any claims or drops yourself on Fantrax.[/]")
+    if r.notes:
+        out.append("\n".join(f"[cyan]•[/] {n}" for n in r.notes))
+    if r.uses_moneypuck:
+        out.append(f"[dim]{CREDIT}[/]")
+    return out
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")

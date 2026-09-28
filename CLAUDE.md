@@ -28,6 +28,7 @@ uv run hockey roster [--team X] # roster: FP/GP, rest-of-season games + FP, top 
 uv run hockey rank [--pos D] [--available] [--owner TBB] [--sort ros] [--limit N]
 uv run hockey player NAME|FXID  # every component behind one projection (prior, season, L30, L14, weights)
 uv run hockey lineup [--period N] [--current] [--out NAME ...]  # best lineup for the next weekly lock
+uv run hockey waivers [--pos D] [--protect NAME ...] [--max-ros-cost 10] [--period N]  # pickups + streamers
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -80,6 +81,23 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
 - Report: recommended actives, bench with reasons, plain-language moves (never sent to Fantrax), the
   current-vs-recommended gain, and flags: empty slots, 0-game starters, healthy-looking IR players,
   Minors promotions worth considering, reserve > 6 / IR > 3.
+
+## Waivers (Phase 4, `hockey/waivers/report.py`)
+- **Gain = improvement in your best starting lineup**, not player vs player:
+  `V(roster − drop + pickup) − V(roster)`, where V is the lineup DP's total. Season-long pickups value
+  players by `ros_fp`; streamers by expected FP in the period (same numbers as `hockey lineup`).
+- **Open spots** = min(effective_max − all rostered, (12 + 6) − Active/Reserve). With an open spot, a
+  pickup needs no drop.
+- **Drops**: only Active/Reserve players. IR and Minors players are never suggested. Also protected:
+  `franchise_tag: true` in `data/keepers.yaml` (`hockey/keepers.py`), and `--protect NAME`. Tried
+  drops are the 3 lowest-ROS players plus the lowest per position group, so the run stays fast.
+- **Streamers** may only use a drop that costs ≤ `--max-ros-cost` (default 10) rest-of-season points.
+  Anything held back is summarized in a note.
+- **Pool**: FA/W players with an NHL id. Players with no NHL record (juniors, undrafted prospects,
+  ineligible under league rules) are excluded, with a note. W players are marked (a claim, not an
+  instant add).
+- Output: best pickups (ROS gain), by-position table (your weakest starter vs the best available),
+  streamers (week gain + ROS change), games-per-team density, notes, MoneyPuck credit.
 
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
@@ -150,7 +168,8 @@ docstring: per-stat stabilization n0 in games, recency bonus 0.5 + 0.5 for the l
 blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed by 1,500 shots,
 games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
-`lineup/` (periods, availability, optimize, report) · `sync.py` orchestration · `probe.py` ·
+`lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `keepers.py` ·
+`sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
 gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
@@ -161,7 +180,8 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
    xG/TOI/PP share; rest-of-season games; rookie default; `hockey player`, `hockey rank`.
 3. ✅ Weekly lineup optimizer (`hockey lineup`): period schedule, goalie starts + b2b, availability
    signals + `--out`, multi-position DP, moves and flags.
-4. Waivers/streaming vs weakest rostered player per position; filter ineligible (undrafted) prospects.
+4. ✅ Waivers (`hockey waivers`): lineup-delta gains with best drop, by-position view, streamers with a
+   ROS-cost limit, schedule density, keeper/--protect protection, no-record prospects excluded.
 5. Trade analyzer: value over replacement (10-team slot counts), scarcity, roster fit, keeper and
    draft-pick value.
 6. Keepers: age curve, `data/keepers.yaml` clock (3-time limit, 4 franchise tags, tag removal

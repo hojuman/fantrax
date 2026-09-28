@@ -282,21 +282,13 @@ def player(name: str = typer.Argument(..., help="Player name (or part of it), or
         console.print(part)
 
 
-@app.command()
-def lineup(
-    period: int = typer.Option(None, help="Roster period number (default: the next lineup lock)."),
-    current: bool = typer.Option(False, "--current", help="Show the period in progress (already locked)."),
-    out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
-    team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
-) -> None:
-    """Recommend the best lineup for a weekly lock: games scheduled, goalie starts, availability."""
+def _team_period_games(team: str | None, period: int | None, current: bool = False):
+    """Shared by lineup/waivers: my team row, the chosen roster period, and its NHL games."""
     from datetime import datetime
 
     from hockey.db import get_meta
     from hockey.lineup.periods import current_period, next_period, parse_periods
-    from hockey.lineup.report import build_report
     from hockey.sources.nhl import NhlClient
-    from hockey.views.tables import lineup_tables
 
     settings, conn, http = _open()
     if team:
@@ -328,6 +320,21 @@ def lineup(
         raise typer.Exit(1) from e
     finally:
         http.close()
+    return settings, conn, row, chosen, games, now
+
+
+@app.command()
+def lineup(
+    period: int = typer.Option(None, help="Roster period number (default: the next lineup lock)."),
+    current: bool = typer.Option(False, "--current", help="Show the period in progress (already locked)."),
+    out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
+    team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+) -> None:
+    """Recommend the best lineup for a weekly lock: games scheduled, goalie starts, availability."""
+    from hockey.lineup.report import build_report
+    from hockey.views.tables import lineup_tables
+
+    settings, conn, row, chosen, games, now = _team_period_games(team, period, current)
     league_roster = settings.league.get("roster") or {}
     report = build_report(
         Valuer(conn, load_rules(conn), settings.league),
@@ -342,6 +349,42 @@ def lineup(
     if not games:
         console.print(f"[yellow]No regular-season NHL games in period {chosen.number}.[/]")
     for part in lineup_tables(row["name"], report, now):
+        console.print(part)
+
+
+@app.command()
+def waivers(
+    pos: str = typer.Option(None, help="Only this slot: C, LW, RW, D or G."),
+    limit: int = typer.Option(10, help="Rows per table."),
+    protect: list[str] = typer.Option(
+        None, "--protect", help="Never suggest dropping this player (repeatable)."
+    ),
+    period: int = typer.Option(None, help="Roster period for the weekly numbers (default: the next lock)."),
+    max_ros_cost: float = typer.Option(10.0, help="Streamers: most rest-of-season points a drop may cost."),
+    team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+) -> None:
+    """Best free-agent pickups vs your weakest players, and streamers for the coming week."""
+    from hockey.keepers import load_keepers
+    from hockey.views.tables import waiver_tables
+    from hockey.waivers.report import build_waivers
+
+    if pos and pos.upper() not in ("C", "LW", "RW", "D", "G"):
+        console.print("[red]--pos must be one of C, LW, RW, D, G[/]")
+        raise typer.Exit(2)
+    settings, conn, row, chosen, games, now = _team_period_games(team, period)
+    report = build_waivers(
+        Valuer(conn, load_rules(conn), settings.league),
+        row["team_id"],
+        chosen,
+        games,
+        settings.league.get("roster") or {},
+        keepers=load_keepers(),
+        protect=protect or [],
+        pos=pos.upper() if pos else None,
+        limit=limit,
+        max_ros_cost=max_ros_cost,
+    )
+    for part in waiver_tables(row["name"], report):
         console.print(part)
 
 

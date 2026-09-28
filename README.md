@@ -15,6 +15,7 @@ uv run hockey rank --pos D --available   # best free-agent defencemen
 uv run hockey player "Quinn Hughes"      # why a player projects where he does
 uv run hockey lineup                     # best lineup for the next weekly lock
 uv run hockey lineup --out "Sebastian Aho"   # ...with a player you know is hurt (full name)
+uv run hockey waivers                    # best pickups, your weak spots, streamers for the week
 uv run hockey ids --unmatched
 uv run pytest               # offline tests
 ```
