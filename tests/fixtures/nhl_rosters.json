@@ -1,0 +1,246 @@
+{
+ "EDM": {
+  "forwards": [
+   {
+    "id": 8478402,
+    "firstName": {
+     "default": "Connor"
+    },
+    "lastName": {
+     "default": "McDavid"
+    },
+    "positionCode": "C",
+    "birthDate": "1997-01-13",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ },
+ "CAR": {
+  "forwards": [
+   {
+    "id": 8478427,
+    "firstName": {
+     "default": "Sebastian"
+    },
+    "lastName": {
+     "default": "Aho"
+    },
+    "positionCode": "C",
+    "birthDate": "1997-07-26",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [
+   {
+    "id": 8484999,
+    "firstName": {
+     "default": "Callup"
+    },
+    "lastName": {
+     "default": "Rookie"
+    },
+    "positionCode": "D",
+    "birthDate": "2005-01-01",
+    "sweaterNumber": 1
+   }
+  ],
+  "goalies": []
+ },
+ "NYI": {
+  "forwards": [],
+  "defensemen": [
+   {
+    "id": 8480222,
+    "firstName": {
+     "default": "Sebastian"
+    },
+    "lastName": {
+     "default": "Aho"
+    },
+    "positionCode": "D",
+    "birthDate": "1996-02-17",
+    "sweaterNumber": 1
+   }
+  ],
+  "goalies": []
+ },
+ "VAN": {
+  "forwards": [
+   {
+    "id": 8480012,
+    "firstName": {
+     "default": "Elias"
+    },
+    "lastName": {
+     "default": "Pettersson"
+    },
+    "positionCode": "C",
+    "birthDate": "1998-11-12",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [
+   {
+    "id": 8483678,
+    "firstName": {
+     "default": "Elias"
+    },
+    "lastName": {
+     "default": "Pettersson"
+    },
+    "positionCode": "D",
+    "birthDate": "2004-02-16",
+    "sweaterNumber": 1
+   },
+   {
+    "id": 8480800,
+    "firstName": {
+     "default": "Quinn"
+    },
+    "lastName": {
+     "default": "Hughes"
+    },
+    "positionCode": "D",
+    "birthDate": "1999-10-14",
+    "sweaterNumber": 1
+   }
+  ],
+  "goalies": [
+   {
+    "id": 8477967,
+    "firstName": {
+     "default": "Thatcher"
+    },
+    "lastName": {
+     "default": "Demko"
+    },
+    "positionCode": "G",
+    "birthDate": "1995-12-08",
+    "sweaterNumber": 1
+   }
+  ]
+ },
+ "OTT": {
+  "forwards": [
+   {
+    "id": 8482116,
+    "firstName": {
+     "default": "Tim"
+    },
+    "lastName": {
+     "default": "Stützle"
+    },
+    "positionCode": "C",
+    "birthDate": "2002-01-15",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ },
+ "MTL": {
+  "forwards": [
+   {
+    "id": 8483515,
+    "firstName": {
+     "default": "Juraj"
+    },
+    "lastName": {
+     "default": "Slafkovský"
+    },
+    "positionCode": "L",
+    "birthDate": "2004-03-30",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ },
+ "VGK": {
+  "forwards": [
+   {
+    "id": 8478483,
+    "firstName": {
+     "default": "Mitch"
+    },
+    "lastName": {
+     "default": "Marner"
+    },
+    "positionCode": "R",
+    "birthDate": "1997-05-05",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ },
+ "NYR": {
+  "forwards": [
+   {
+    "id": 8476468,
+    "firstName": {
+     "default": "J.T."
+    },
+    "lastName": {
+     "default": "Miller"
+    },
+    "positionCode": "C",
+    "birthDate": "1993-03-14",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ },
+ "NSH": {
+  "forwards": [
+   {
+    "id": 8475158,
+    "firstName": {
+     "default": "Ryan"
+    },
+    "lastName": {
+     "default": "O'Reilly"
+    },
+    "positionCode": "C",
+    "birthDate": "1991-02-07",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": [
+   {
+    "id": 8477424,
+    "firstName": {
+     "default": "Juuse"
+    },
+    "lastName": {
+     "default": "Saros"
+    },
+    "positionCode": "G",
+    "birthDate": "1995-04-19",
+    "sweaterNumber": 1
+   }
+  ]
+ },
+ "NJD": {
+  "forwards": [
+   {
+    "id": 8481559,
+    "firstName": {
+     "default": "Jack"
+    },
+    "lastName": {
+     "default": "Hughes"
+    },
+    "positionCode": "C",
+    "birthDate": "2001-05-14",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [],
+  "goalies": []
+ }
+}

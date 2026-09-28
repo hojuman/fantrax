@@ -1,0 +1,80 @@
+{
+ "period": 1,
+ "rosters": {
+  "t01": {
+   "teamName": "The Blue Blazers",
+   "rosterItems": [
+    {
+     "id": "04aho",
+     "position": "C",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "06pet",
+     "position": "D",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "05stu",
+     "position": "C",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "03mar",
+     "position": "RW",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "05qhu",
+     "position": "D",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "04sar",
+     "position": "G",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "07pro",
+     "position": "C",
+     "status": "MINORS"
+    }
+   ]
+  },
+  "t02": {
+   "teamName": "Ricky Bobby Racing",
+   "rosterItems": [
+    {
+     "id": "04abc",
+     "position": "C",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "05aho",
+     "position": "D",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "04pet",
+     "position": "C",
+     "status": "ACTIVE"
+    }
+   ]
+  },
+  "t03": {
+   "teamName": "Shake and Bake",
+   "rosterItems": [
+    {
+     "id": "03mil",
+     "position": "C",
+     "status": "ACTIVE"
+    },
+    {
+     "id": "04dem",
+     "position": "G",
+     "status": "RESERVE"
+    }
+   ]
+  }
+ }
+}

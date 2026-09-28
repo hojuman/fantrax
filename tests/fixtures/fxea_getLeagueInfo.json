@@ -1,0 +1,189 @@
+{
+ "leagueId": "testleague",
+ "draftType": "SNAKE",
+ "teamInfo": {
+  "t01": {
+   "id": "t01",
+   "name": "The Blue Blazers"
+  },
+  "t02": {
+   "id": "t02",
+   "name": "Ricky Bobby Racing"
+  },
+  "t03": {
+   "id": "t03",
+   "name": "Shake and Bake"
+  }
+ },
+ "playerInfo": {
+  "04abc": {
+   "status": "FA",
+   "eligiblePos": "C"
+  },
+  "04aho": {
+   "status": "FA",
+   "eligiblePos": "C,LW"
+  },
+  "05aho": {
+   "status": "FA",
+   "eligiblePos": "D"
+  },
+  "04pet": {
+   "status": "FA",
+   "eligiblePos": "C"
+  },
+  "06pet": {
+   "status": "FA",
+   "eligiblePos": "D"
+  },
+  "05stu": {
+   "status": "FA",
+   "eligiblePos": "C,LW"
+  },
+  "06sla": {
+   "status": "FA",
+   "eligiblePos": "LW,RW"
+  },
+  "03mar": {
+   "status": "FA",
+   "eligiblePos": "RW"
+  },
+  "03mil": {
+   "status": "FA",
+   "eligiblePos": "C"
+  },
+  "02ore": {
+   "status": "FA",
+   "eligiblePos": "C"
+  },
+  "05qhu": {
+   "status": "FA",
+   "eligiblePos": "D"
+  },
+  "05jhu": {
+   "status": "FA",
+   "eligiblePos": "C"
+  },
+  "04dem": {
+   "status": "FA",
+   "eligiblePos": "G"
+  },
+  "04sar": {
+   "status": "FA",
+   "eligiblePos": "G"
+  },
+  "07pro": {
+   "status": "FA",
+   "eligiblePos": "C"
+  }
+ },
+ "scoringSystem": {
+  "type": "POINTS",
+  "scoringCategorySettings": [
+   {
+    "group": {
+     "code": "SKATING",
+     "name": "Skating"
+    },
+    "configs": [
+     {
+      "scoringCategory": {
+       "code": "G",
+       "shortName": "G",
+       "name": "Goals"
+      },
+      "points": 3
+     },
+     {
+      "scoringCategory": {
+       "code": "A",
+       "shortName": "A",
+       "name": "Assists"
+      },
+      "points": 2
+     },
+     {
+      "scoringCategory": {
+       "code": "PM",
+       "shortName": "+/-",
+       "name": "Plus/Minus"
+      },
+      "points": 0.5
+     },
+     {
+      "scoringCategory": {
+       "code": "PPP",
+       "shortName": "PPP",
+       "name": "Power Play Points"
+      },
+      "points": 1
+     },
+     {
+      "scoringCategory": {
+       "code": "SOG",
+       "shortName": "SOG",
+       "name": "Shots on Goal"
+      },
+      "points": 0.4
+     },
+     {
+      "scoringCategory": {
+       "code": "HIT",
+       "shortName": "Hit",
+       "name": "Hits"
+      },
+      "points": 0.25
+     },
+     {
+      "scoringCategory": {
+       "code": "BLK",
+       "shortName": "BkS",
+       "name": "Blocked Shots"
+      },
+      "points": 0.5
+     }
+    ]
+   },
+   {
+    "group": {
+     "code": "GOALIE",
+     "name": "Goaltending"
+    },
+    "configs": [
+     {
+      "scoringCategory": {
+       "code": "W",
+       "shortName": "W",
+       "name": "Wins"
+      },
+      "points": 4
+     },
+     {
+      "scoringCategory": {
+       "code": "GA",
+       "shortName": "GA",
+       "name": "Goals Against"
+      },
+      "points": -2
+     },
+     {
+      "scoringCategory": {
+       "code": "SV",
+       "shortName": "SV",
+       "name": "Saves"
+      },
+      "points": 0.2
+     },
+     {
+      "scoringCategory": {
+       "code": "SO",
+       "shortName": "SO",
+       "name": "Shutouts"
+      },
+      "points": 3
+     }
+    ]
+   }
+  ]
+ }
+}

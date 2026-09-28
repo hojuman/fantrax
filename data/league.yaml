@@ -1,0 +1,48 @@
+# Talladega Nights: league facts that Fantrax's API may not expose, plus fallbacks.
+# Committed on purpose: nothing here is secret. Secrets live in .env.
+
+name: Talladega Nights
+teams: 10
+format: h2h_points
+lineup_lock: weekly            # set before Monday's first NHL game
+
+roster:
+  active: {C: 2, LW: 2, RW: 2, D: 4, G: 2}
+  reserve: 6
+  injured_reserve: 3
+  minors: 5                    # < 165 NHL games played
+  max_players: 27
+
+keepers:
+  regular: 10
+  minors: 5
+  minors_gp_threshold: 165     # keeper clock starts after the player passes this many NHL GP
+  max_times_kept: 3            # regular players, excluding franchise-tagged
+  franchise_tags: 4
+  clock_resets_on_trade: true
+
+# Scoring weights. `hockey sync` reads these from Fantrax getLeagueInfo when it can; these are only
+# used if Fantrax doesn't return them. Fill them in from Fantrax > League > Settings > Scoring.
+# Groups: skater, goalie, and optional F / D overrides of skater. Keys are Fantrax codes or column
+# names (G, A, +/-, PPP, SOG, HIT, BLK, W, GA, SV, SO, ...).
+scoring:
+  skater: {}
+  #   G: 3
+  #   A: 2
+  #   +/-: 0.5
+  #   PPP: 1
+  #   SOG: 0.4
+  #   HIT: 0.25
+  #   BLK: 0.5
+  goalie: {}
+  #   W: 4
+  #   GA: -2
+  #   SV: 0.2
+  #   SO: 3
+  code_aliases: {}             # e.g. {"Hits": hit} for a code this tool doesn't know yet
+  ignore_codes: []             # codes to skip entirely (only ones scored at 0)
+
+projection:
+  season_weights: [5, 4, 3]    # most recent completed season first
+  regression_games: {F: 25, D: 25, G: 20}
+  gp_cap: {F: 82, D: 82, G: 65}

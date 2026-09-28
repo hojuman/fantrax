@@ -1,0 +1,92 @@
+{
+ "04abc": {
+  "fantraxId": "04abc",
+  "name": "McDavid, Connor",
+  "team": "EDM",
+  "position": "C"
+ },
+ "04aho": {
+  "fantraxId": "04aho",
+  "name": "Aho, Sebastian",
+  "team": "CAR",
+  "position": "C,LW"
+ },
+ "05aho": {
+  "fantraxId": "05aho",
+  "name": "Aho, Sebastian",
+  "team": "NYI",
+  "position": "D"
+ },
+ "04pet": {
+  "fantraxId": "04pet",
+  "name": "Pettersson, Elias",
+  "team": "VAN",
+  "position": "C"
+ },
+ "06pet": {
+  "fantraxId": "06pet",
+  "name": "Pettersson, Elias",
+  "team": "VAN",
+  "position": "D"
+ },
+ "05stu": {
+  "fantraxId": "05stu",
+  "name": "Stutzle, Tim",
+  "team": "OTT",
+  "position": "C,LW"
+ },
+ "06sla": {
+  "fantraxId": "06sla",
+  "name": "Slafkovsky, Juraj",
+  "team": "MON",
+  "position": "LW,RW"
+ },
+ "03mar": {
+  "fantraxId": "03mar",
+  "name": "Marner, Mitchell",
+  "team": "VGS",
+  "position": "RW"
+ },
+ "03mil": {
+  "fantraxId": "03mil",
+  "name": "Miller, JT",
+  "team": "NYR",
+  "position": "C"
+ },
+ "02ore": {
+  "fantraxId": "02ore",
+  "name": "O'Reilly, Ryan",
+  "team": "NAS",
+  "position": "C"
+ },
+ "05qhu": {
+  "fantraxId": "05qhu",
+  "name": "Hughes, Quinn",
+  "team": "VAN",
+  "position": "D"
+ },
+ "05jhu": {
+  "fantraxId": "05jhu",
+  "name": "Hughes, Jack",
+  "team": "NJ",
+  "position": "C"
+ },
+ "04dem": {
+  "fantraxId": "04dem",
+  "name": "Demko, Thatcher",
+  "team": "VAN",
+  "position": "G"
+ },
+ "04sar": {
+  "fantraxId": "04sar",
+  "name": "Saros, Juuse",
+  "team": "NAS",
+  "position": "G"
+ },
+ "07pro": {
+  "fantraxId": "07pro",
+  "name": "Prospect, Future",
+  "team": "(N/A)",
+  "position": "C"
+ }
+}
