@@ -96,6 +96,8 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
 - **Pool**: FA/W players with an NHL id. Players with no NHL record (juniors, undrafted prospects,
   ineligible under league rules) are excluded, with a note. W players are marked (a claim, not an
   instant add).
+- With an open spot and no lineup-improving pickup, a "best use of your open spot" depth list (top ROS
+  FAs) is shown instead of an empty table.
 - Output: best pickups (ROS gain), by-position table (your weakest starter vs the best available),
   streamers (week gain + ROS change), games-per-team density, notes, MoneyPuck credit.
 
@@ -145,6 +147,9 @@ two Elias Petterssons (both VAN, F vs D), accents, J.T./JT, Mitch/Mitchell, Egor
 changes, prospects with no NHL games (expected unmatched). Also from the real feed: a team-less
 "OReilly, Ryan" namesake that must lose to the real one (conflict demotion), duplicate Fantrax names
 with no NHL record (two Hugo Petterssons), and an Aho listed with his new team after a trade.
+**What to watch:** sync reports `unmatched: rostered` (should be only rookies/prospects; names are
+listed) separately from `unmatched: pool, no NHL record` (thousands of juniors/Europeans: expected).
+`hockey ids --unmatched` shows rostered players only; add `--all` for the pool.
 **Fixing a miss:** `hockey ids --unmatched`, add `fantrax_id,nhl_id,note` to `data/id_overrides.csv`
 (NHL id is in the nhl.com player URL), then `hockey sync --skip-nhl`.
 

@@ -409,6 +409,33 @@ def waiver_tables(team_name: str, r) -> list:
         t.add_row("[dim]No free agent improves your starting lineup[/]", *[""] * 8)
     out.append(t)
 
+    if r.depth:
+        d = Table(
+            title="Best use of your open spot: depth for injuries (or stream it week to week, below)",
+            title_justify="left",
+        )
+        for col, just in [
+            ("Add", "left"),
+            ("Pos", "left"),
+            ("NHL", "left"),
+            ("", "left"),
+            ("FP/GP", "right"),
+            ("ROS FP", "right"),
+            ("Games wk", "right"),
+        ]:
+            d.add_column(col, justify=just, no_wrap=True)
+        for p in r.depth:
+            d.add_row(
+                p.row.name,
+                p.row.positions,
+                p.row.nhl_team or "",
+                _status(p.row.owner),
+                f"{p.row.projection.fp_per_gp:.2f}",
+                f"{p.ros:.0f}",
+                str(p.avail.games),
+            )
+        out.append(d)
+
     b = Table(title="By position: your weakest starter vs the best available", title_justify="left")
     for col, just in [
         ("Slot", "left"),

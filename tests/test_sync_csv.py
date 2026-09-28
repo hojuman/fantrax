@@ -137,7 +137,7 @@ def test_cli_roster_smoke(tmp_path, monkeypatch, settings):
     assert result.exit_code == 0, result.output
     assert "The Blue Blazers" in result.output and "Sebastian Aho" in result.output
     assert "No NHL record (rookie estimate, 0 games projected): Future Prospect" in result.output
-    ids = CliRunner().invoke(cli.app, ["ids", "--unmatched"])
+    ids = CliRunner().invoke(cli.app, ["ids", "--unmatched"], env={"COLUMNS": "200"})
     assert "Future Prospect" in ids.output
 
 
@@ -185,3 +185,37 @@ def test_roster_urls_use_explicit_season(conn, settings, fake_http):
     full_sync(conn, settings, fake_http)
     roster_calls = [c for c in fake_http.calls if "/roster/" in c]
     assert len(roster_calls) == 32 and all(c.endswith("/20262027") for c in roster_calls)
+
+
+def test_unmatched_counts_split_rostered_from_pool(conn, settings):
+    report = full_sync(conn, settings)
+    # Rostered: only the prospect in a Minors slot. Pool: two Hugo Petterssons, Karri Aho, the OReilly namesake.
+    assert report.counts["unmatched: rostered"] == 1
+    assert report.counts["unmatched: pool, no NHL record"] == 4
+    assert "ID unmatched" not in report.counts
+    assert any(
+        "Rostered players without an NHL id: Future Prospect (rookie/prospect?)" in n for n in report.notes
+    )
+    assert any("4 pool players have no NHL record (expected" in n for n in report.notes)
+
+
+def test_all_rostered_matched_note(conn, settings):
+    full_sync(conn, settings)
+    conn.execute("DELETE FROM roster_entry WHERE fantrax_id='07pro'")
+    report = SyncReport()
+    run_idmap(conn, report)
+    assert "All rostered players matched to an NHL id." in report.notes
+
+
+def test_cli_ids_defaults_to_rostered(tmp_path, monkeypatch, settings):
+    from hockey import cli, db
+
+    monkeypatch.setenv("HOCKEY_DB", str(tmp_path / "ids.db"))
+    c = db.connect(tmp_path / "ids.db")
+    full_sync(c, settings)
+    c.close()
+    short = CliRunner().invoke(cli.app, ["ids", "--unmatched"], env={"COLUMNS": "200"})
+    assert "Future Prospect" in short.output and "Karri Aho" not in short.output
+    full = CliRunner().invoke(cli.app, ["ids", "--unmatched", "--all"], env={"COLUMNS": "200"})
+    assert "Future Prospect" in full.output and "Karri Aho" in full.output
+    assert full.output.index("Future Prospect") < full.output.index("Karri Aho")  # rostered first

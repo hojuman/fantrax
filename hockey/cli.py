@@ -128,7 +128,9 @@ def ids(
     unmatched: bool = typer.Option(False, "--unmatched", help="List players with no NHL id."),
     fuzzy: bool = typer.Option(False, "--fuzzy", help="List fuzzy matches that need confirming."),
     all_players: bool = typer.Option(
-        False, "--all", help="With --unmatched: include non-rostered/non-pool players."
+        False,
+        "--all",
+        help="With --unmatched: include unrostered pool players (thousands, mostly juniors/Europeans).",
     ),
 ) -> None:
     """ID-mapping health: counts by method, unmatched and fuzzy lists."""
@@ -136,19 +138,36 @@ def ids(
     counts = {
         r["method"]: r["n"] for r in conn.execute("SELECT method, COUNT(*) n FROM player_map GROUP BY method")
     }
-    counts["unmatched (rostered/pool)"] = conn.execute(
-        "SELECT COUNT(*) FROM id_unmatched WHERE relevant=1"
+    rostered_sql = "EXISTS(SELECT 1 FROM roster_entry re WHERE re.fantrax_id = u.fantrax_id)"
+    counts["unmatched: rostered"] = conn.execute(
+        f"SELECT COUNT(*) FROM id_unmatched u WHERE {rostered_sql}"
+    ).fetchone()[0]
+    counts["unmatched: pool, no NHL record"] = conn.execute(
+        f"SELECT COUNT(*) FROM id_unmatched u WHERE NOT {rostered_sql}"
     ).fetchone()[0]
     console.print(kv_table("Fantrax → NHL id mapping", counts))
     if unmatched:
-        t = Table(title="Unmatched", title_justify="left")
-        for c in ("FX id", "Name", "Team", "Pos", "Reason", "Nearest candidates"):
+        t = Table(
+            title="Unmatched" + ("" if all_players else ": rostered players (--all for the pool too)"),
+            title_justify="left",
+        )
+        for c in ("FX id", "Name", "Team", "Pos", "Rostered", "Reason", "Nearest candidates"):
             t.add_column(c)
-        q = "SELECT * FROM id_unmatched" + ("" if all_players else " WHERE relevant=1") + " ORDER BY name"
+        q = (
+            f"SELECT u.*, {rostered_sql} AS rostered FROM id_unmatched u"
+            + ("" if all_players else f" WHERE {rostered_sql}")
+            + " ORDER BY rostered DESC, name"
+        )
         for r in conn.execute(q):
             cands = "; ".join(f"{i}: {n}" for i, n in json.loads(r["candidates"] or "[]"))
             t.add_row(
-                r["fantrax_id"], r["name"], r["nhl_team"] or "", r["pos_group"] or "", r["reason"], cands
+                r["fantrax_id"],
+                r["name"],
+                r["nhl_team"] or "",
+                r["pos_group"] or "",
+                "yes" if r["rostered"] else "",
+                r["reason"],
+                cands,
             )
         console.print(t)
         console.print(

@@ -153,3 +153,12 @@ def test_cli_waivers(tmp_path, monkeypatch, settings):
     assert CliRunner().invoke(cli.app, ["waivers", "--pos", "X"]).exit_code == 2
     d = CliRunner().invoke(cli.app, ["waivers", "--period", "2", "--pos", "D"], env={"COLUMNS": "200"})
     assert d.exit_code == 0 and "Juraj Slafkovsky" not in d.output
+
+
+def test_open_spot_depth_list_when_nothing_improves_the_lineup(league):
+    r = waivers(*league, pos="C")  # C slots are full with Aho + Stutzle
+    assert r.open_spots > 0 and r.pickups == []
+    assert [p.row.name for p in r.depth][:1] == ["Jack Hughes"]  # the best bench C by ROS
+    assert all("C" in p.eligible for p in r.depth)
+    full = waivers(*league)  # an LW pickup does help: no depth list needed
+    assert full.pickups and full.depth == []

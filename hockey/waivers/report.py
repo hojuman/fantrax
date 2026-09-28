@@ -26,7 +26,8 @@ from hockey.sources.nhl import Game
 from hockey.valuation import RosterRow, Valuer
 
 SHORTLIST = 40
-STREAM_MAX_ROS_COST = 10.0  # a one-week stream may cost at most this many rest-of-season points
+STREAM_MAX_ROS_COST = 10.0
+DEPTH_SHOWN = 5  # a one-week stream may cost at most this many rest-of-season points
 LOWEST_OVERALL = 3
 FREE_AGENT = ("FA", "W")
 
@@ -73,6 +74,7 @@ class WaiverReport:
     density: dict[int, list[str]]
     notes: list[str] = field(default_factory=list)
     uses_moneypuck: bool = False
+    depth: list[Player] = field(default_factory=list)  # best bench adds for an open spot
 
 
 def team_value(players: list[Player], value: Callable[[Player], float], slots: dict[str, int]) -> float:
@@ -213,6 +215,9 @@ def build_waivers(
         density=schedule_density(games),
         uses_moneypuck=any(p.row.projection and p.row.projection.uses_moneypuck for p in mine + pool),
     )
+    if spots and not report.pickups:
+        # Nobody improves the starting lineup, but a free roster spot still has a best use: depth.
+        report.depth = season_pool[:DEPTH_SHOWN]
     if no_record:
         report.notes.append(
             f"{len(no_record)} free agents have no NHL record (juniors, Europeans, undrafted "

@@ -343,15 +343,35 @@ def run_idmap(conn: sqlite3.Connection, report: SyncReport, overrides_path: Path
             ),
         )
     conn.commit()
+    rostered = {
+        r[0]: (r[1] or "").upper() for r in conn.execute("SELECT fantrax_id, status FROM roster_entry")
+    }
+    unmatched_rostered = [u for u in unmatched if u.fantrax_id in rostered]
     report.counts["ID matched"] = len(matched)
-    report.counts["ID unmatched"] = len(unmatched)
+    report.counts["unmatched: rostered"] = len(unmatched_rostered)
+    report.counts["unmatched: pool, no NHL record"] = len(unmatched) - len(unmatched_rostered)
     fuzzy = sum(1 for m in matched if m.method == "fuzzy")
     if fuzzy:
         report.notes.append(
             f"{fuzzy} fuzzy ID matches: check `hockey ids --fuzzy` and confirm in data/id_overrides.csv."
         )
-    if unmatched:
-        report.notes.append(f"{len(unmatched)} players not matched to an NHL id: `hockey ids --unmatched`.")
+    if unmatched_rostered:
+        names = []
+        for u in unmatched_rostered[:10]:
+            f = by_id[u.fantrax_id]
+            likely_prospect = f.team is None or rostered.get(u.fantrax_id) == "MINORS"
+            names.append(f.name + (" (rookie/prospect?)" if likely_prospect else ""))
+        more = f" and {len(unmatched_rostered) - 10} more" if len(unmatched_rostered) > 10 else ""
+        report.notes.append(
+            f"Rostered players without an NHL id: {', '.join(names)}{more}. See `hockey ids --unmatched`."
+        )
+    elif rostered:
+        report.notes.append("All rostered players matched to an NHL id.")
+    if len(unmatched) > len(unmatched_rostered):
+        report.notes.append(
+            f"{len(unmatched) - len(unmatched_rostered)} pool players have no NHL record "
+            "(expected: juniors, Europeans, prospects)."
+        )
 
 
 def find_my_team(conn: sqlite3.Connection, settings: Settings) -> sqlite3.Row | None:
