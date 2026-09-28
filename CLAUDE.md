@@ -29,6 +29,7 @@ uv run hockey rank [--pos D] [--available] [--owner TBB] [--sort ros] [--limit N
 uv run hockey player NAME|FXID  # every component behind one projection (prior, season, L30, L14, weights)
 uv run hockey lineup [--period N] [--current] [--out NAME ...]  # best lineup for the next weekly lock
 uv run hockey waivers [--pos D] [--protect NAME ...] [--max-ros-cost 10] [--period N]  # pickups + streamers
+uv run hockey trade "GIVE, ..." "GET, ..." [--give-pick 2027:2] [--get-pick 2027:1] [--partner T] [--keeper-weight 0.5]
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -100,6 +101,21 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
   FAs) is shown instead of an empty table.
 - Output: best pickups (ROS gain), by-position table (your weakest starter vs the best available),
   streamers (week gain + ROS change), games-per-team density, notes, MoneyPuck credit.
+
+## Trades (Phase 5, `hockey/trade/analyze.py`)
+- Evaluates both sides. **Roster fit** = change in each team's best starting lineup over the rest of the
+  season (same lineup-DP measure as waivers; incoming players arrive on Reserve, IR players stay IR).
+  **Keeper value** = next-season points (fp_per_gp × games_share × 82) above the keeper line (value of
+  the player ranked teams × regular keepers = 100th). **Picks** (entered by hand, `season:round`) = the
+  next-season value at rank kept + (round−1)×teams + mid-round, minus the waiver line (rank teams × 18).
+  **Score** = lineup change + keeper_weight × (keeper + pick change). Verdict wording comes from both
+  scores.
+- Scarcity context: value over replacement per player (replacement = first non-starter at the slot
+  league-wide: teams × slots). It's shown, not added to the score (the lineup DP already prices need).
+- Notes: roster overflow (must drop), franchise-tag / keeper-clock reset (from keepers.yaml), IR
+  players, pick-slot assumption. Name resolution: comma-separated names or FX ids; ambiguous names
+  list the candidates; everything you receive must come from one team (`--partner` for picks-only).
+- No age curve yet (Phase 6). Draft picks aren't read from Fantrax (`getDraftPicks` unverified).
 
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
@@ -173,7 +189,8 @@ docstring: per-stat stabilization n0 in games, recency bonus 0.5 + 0.5 for the l
 blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed by 1,500 shots,
 games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
-`lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `keepers.py` ·
+`lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
+`keepers.py` ·
 `sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
@@ -187,8 +204,8 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
    signals + `--out`, multi-position DP, moves and flags.
 4. ✅ Waivers (`hockey waivers`): lineup-delta gains with best drop, by-position view, streamers with a
    ROS-cost limit, schedule density, keeper/--protect protection, no-record prospects excluded.
-5. Trade analyzer: value over replacement (10-team slot counts), scarcity, roster fit, keeper and
-   draft-pick value.
+5. ✅ Trade analyzer (`hockey trade`): both-sides roster fit (lineup DP), value over replacement,
+   keeper value above the keeper line, draft-pick value, roster overflow, keeper-clock notes.
 6. Keepers: age curve, `data/keepers.yaml` clock (3-time limit, 4 franchise tags, tag removal
    rule, reset on trade), 165-GP minors rule from career GP; optimal 10+5 set.
 7. League intel + daily markdown report.

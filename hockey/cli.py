@@ -407,6 +407,108 @@ def waivers(
         console.print(part)
 
 
+def _resolve(names: str, rows, where: str):
+    """Comma-separated names (or Fantrax ids) -> RosterRows from ``rows``; exits on unknown/ambiguous."""
+    from hockey.idmap.normalize import basic
+
+    out = []
+    for raw in [n.strip() for n in names.split(",") if n.strip() and n.strip() != "-"]:
+        by_id = [r for r in rows if r.fantrax_id == raw]
+        exact = [r for r in rows if basic(r.name) == basic(raw)]
+        partial = [r for r in rows if basic(raw) in basic(r.name)]
+        found = by_id or exact or partial
+        if not found:
+            console.print(f"[red]No player matching {raw!r} {where}.[/]")
+            raise typer.Exit(1)
+        if len(found) > 1:
+            listing = "; ".join(f"{r.name} ({r.owner}, {r.fantrax_id})" for r in found[:8])
+            console.print(f"[red]{raw!r} is ambiguous {where}:[/] {listing}. Use the Fantrax id.")
+            raise typer.Exit(1)
+        out.append(found[0])
+    return out
+
+
+@app.command()
+def trade(
+    give: str = typer.Argument(
+        ..., help='Players you send, comma-separated ("-" for none), e.g. "Aho, Tuch".'
+    ),
+    get: str = typer.Argument(..., help='Players you receive, comma-separated ("-" for none).'),
+    give_pick: list[str] = typer.Option(
+        None, "--give-pick", help="Draft pick you send, e.g. 2027:2 (repeatable)."
+    ),
+    get_pick: list[str] = typer.Option(
+        None, "--get-pick", help="Draft pick you receive, e.g. 2027:1 (repeatable)."
+    ),
+    partner: str = typer.Option(None, help="Other team (needed only when you receive no players)."),
+    keeper_weight: float = typer.Option(
+        0.5, help="Weight of next-season keeper + pick value vs this season."
+    ),
+    team: str = typer.Option(None, help="Your team (default: MY_TEAM_NAME)."),
+) -> None:
+    """Evaluate a proposed trade for both sides: roster fit, scarcity, keeper and pick value."""
+    from hockey.keepers import load_keepers
+    from hockey.trade.analyze import Pick, TradeError, analyze
+    from hockey.views.tables import trade_tables
+
+    settings, conn, http = _open()
+    if team:
+        settings.my_team_name, settings.my_team_short = team, team
+    me = find_my_team(conn, settings)
+    if me is None:
+        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
+        raise typer.Exit(1)
+    valuer = Valuer(conn, load_rules(conn), settings.league)
+    pool = valuer.league_players()
+    mine = valuer.team_roster(me["team_id"])
+    others = [r for r in pool if r.owner not in (me["name"], "FA", "W")]
+    give_rows = _resolve(give, mine, "on your roster")
+    get_rows = _resolve(get, others, "on another team")
+
+    owners = {r.owner for r in get_rows}
+    if partner:
+        prow = conn.execute(
+            "SELECT * FROM fantasy_team WHERE lower(name)=lower(?) OR lower(short_name)=lower(?)",
+            (partner, partner),
+        ).fetchone()
+        if prow is None:
+            console.print(f"[red]No fantasy team {partner!r}.[/]")
+            raise typer.Exit(1)
+        owners.add(prow["name"])
+    if len(owners) != 1:
+        console.print(
+            "[red]Players you receive must all come from one team[/]"
+            if owners
+            else "[red]Name the other team with --partner when you receive only picks.[/]"
+        )
+        raise typer.Exit(1)
+    their_name = owners.pop()
+    their_id = conn.execute("SELECT team_id FROM fantasy_team WHERE name=?", (their_name,)).fetchone()[0]
+    league_cfg = settings.league
+    try:
+        report = analyze(
+            mine,
+            valuer.team_roster(their_id),
+            give_rows,
+            get_rows,
+            pool,
+            my_name=me["name"],
+            their_name=their_name,
+            roster_cfg=league_cfg.get("roster") or {},
+            teams=int(league_cfg.get("teams", 10)),
+            regular_keepers=int((league_cfg.get("keepers") or {}).get("regular", 10)),
+            give_picks=[Pick.parse(p) for p in give_pick or []],
+            get_picks=[Pick.parse(p) for p in get_pick or []],
+            keepers=load_keepers(),
+            keeper_weight=keeper_weight,
+        )
+    except TradeError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1) from e
+    for part in trade_tables(report):
+        console.print(part)
+
+
 @app.command("validate-scoring")
 def validate_scoring(
     path: Path = typer.Argument(

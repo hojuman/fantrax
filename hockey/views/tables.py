@@ -504,6 +504,100 @@ def waiver_tables(team_name: str, r) -> list:
     return out
 
 
+def trade_tables(r) -> list:
+    """Renderables for a TradeReport (hockey/trade/analyze.py)."""
+    me, them = r.me, r.them
+
+    def side_desc(players, picks):
+        items = [p.row.name for p in players] + [str(p) for p in picks]
+        return ", ".join(items) or "nothing"
+
+    out: list = [
+        f"[bold]Trade:[/] {me.team} sends {side_desc(me.sends, me.picks_sent)} → "
+        f"{them.team} sends {side_desc(me.receives, me.picks_received)}"
+    ]
+
+    t = Table(title="Players in the deal", title_justify="left")
+    for col, just in [
+        ("Player", "left"),
+        ("Pos", "left"),
+        ("NHL", "left"),
+        ("Goes to", "left"),
+        ("FP/GP", "right"),
+        ("ROS FP", "right"),
+        ("Over repl.", "right"),
+        ("Next season", "right"),
+        ("Keeper value", "right"),
+        ("Notes", "left"),
+    ]:
+        t.add_column(col, justify=just, no_wrap=col != "Notes")
+    for p, dest in [(p, them.team) for p in me.sends] + [(p, me.team) for p in me.receives]:
+        proj = p.row.projection
+        t.add_row(
+            p.row.name,
+            p.row.positions,
+            p.row.nhl_team or "",
+            dest,
+            f"{proj.fp_per_gp:.2f}" if proj else "–",
+            f"{p.ros:.0f}",
+            f"{p.vor:+.0f}",
+            f"{p.next_season:.0f}",
+            f"{p.keeper_value:.0f}",
+            "; ".join(p.notes),
+        )
+    out.append(t)
+
+    if r.pick_values:
+        pk = Table(title="Draft picks (value = next-season points above waiver level)", title_justify="left")
+        for col in ("Pick", "Goes to", "Value"):
+            pk.add_column(col)
+        for p in me.picks_sent:
+            pk.add_row(str(p), them.team, f"{r.pick_values[p]:.0f}")
+        for p in me.picks_received:
+            pk.add_row(str(p), me.team, f"{r.pick_values[p]:.0f}")
+        out.append(pk)
+
+    imp = Table(title="Impact", title_justify="left")
+    imp.add_column("")
+    imp.add_column(me.team, justify="right")
+    imp.add_column(them.team, justify="right")
+
+    def lineup_cell(s):
+        return f"{s.lineup_before:.0f} → {s.lineup_after:.0f} ([bold]{s.lineup_change:+.0f}[/])"
+
+    imp.add_row("Starting lineup, rest of season (FP)", lineup_cell(me), lineup_cell(them))
+
+    def signed(x: float) -> str:
+        return f"{round(x) or 0:+d}"  # no "-0"
+
+    imp.add_row("Keeper value, next season", signed(me.keeper_change), signed(them.keeper_change))
+    if r.pick_values:
+        imp.add_row("Draft pick value", signed(me.pick_change), signed(them.pick_change))
+    if me.roster_overflow or them.roster_overflow:
+        imp.add_row("Must drop to stay legal", str(me.roster_overflow), str(them.roster_overflow))
+    imp.add_section()
+    imp.add_row(
+        f"[bold]Score[/] (lineup + {r.keeper_weight:g} × future)",
+        f"[bold]{me.score:+.0f}[/]",
+        f"[bold]{them.score:+.0f}[/]",
+    )
+    out.append(imp)
+
+    color = "green" if me.score > 0 else "red"
+    out.append(f"[bold {color}]{r.verdict}[/]")
+    repl = " · ".join(f"{pos} {v:.0f}" for pos, v in r.replacement.items())
+    out.append(
+        f"[dim]Replacement level (ROS FP at the first non-starter): {repl} · keeper line: "
+        f"{r.keeper_line:.0f} next-season FP[/]"
+    )
+    out.append("[dim]Analysis only: this tool never sends or accepts trade offers.[/]")
+    if r.notes:
+        out.append("\n".join(f"[cyan]•[/] {n}" for n in r.notes))
+    if r.uses_moneypuck:
+        out.append(f"[dim]{CREDIT}[/]")
+    return out
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")
