@@ -283,6 +283,20 @@ def run_probe(
         except (FetchError, ReadOnlyViolation) as e:
             results.append(ProbeResult(name, False, "error", str(e)))
 
+    d = get_json("nhl_landing_8478402", f"{WEB}/player/8478402/landing")
+    if d is not None:
+        from hockey.sources.nhl import parse_landing
+
+        c = parse_landing(d, 8478402)
+        results.append(
+            ProbeResult(
+                "NHL player/8478402/landing",
+                c.gp > 0 and bool(c.birth_date),
+                "200",
+                f"career regular-season GP {c.gp}, born {c.birth_date} (McDavid)",
+            )
+        )
+
     d = get_json("nhl_standings", f"{WEB}/standings/{today.isoformat()}")
     if d is not None:
         from hockey.sources.nhl import parse_standings

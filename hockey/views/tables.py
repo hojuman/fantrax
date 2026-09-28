@@ -598,6 +598,74 @@ def trade_tables(r) -> list:
     return out
 
 
+def keeper_tables(team_name: str, p, horizon: int) -> list:
+    """Renderables for a KeeperPlan (hockey/keeper/plan.py)."""
+    labels = {
+        "regular": "[green]Keep[/]",
+        "regular+tag": "[green]Keep + tag[/]",
+        "minors": "[cyan]Keep (minors)[/]",
+        "release": "[dim]Release[/]",
+    }
+    order = {"regular+tag": 0, "regular": 1, "minors": 2, "release": 3}
+    t = Table(
+        title=f"{team_name}: keeper plan ({horizon}-season value, aged and discounted)", title_justify="left"
+    )
+    for col, just in [
+        ("Decision", "left"),
+        ("Player", "left"),
+        ("Pos", "left"),
+        ("Age", "right"),
+        ("Career GP", "right"),
+        ("Clock", "left"),
+        ("Next season", "right"),
+        (f"In {horizon} yrs", "right"),
+        ("Keeper value", "right"),
+        ("Notes", "left"),
+    ]:
+        t.add_column(col, justify=just, no_wrap=col != "Notes")
+    for c in sorted(p.candidates, key=lambda c: (order[c.choice], -c.value)):
+        e = c.entry
+        if c.minors_eligible:
+            clock = "minors (clock off)"
+        elif e.franchise_tag:
+            clock = f"tagged, kept {e.times_kept}x"
+        else:
+            clock = f"kept {e.times_kept}x" + ("" if c.in_yaml else " (assumed)")
+        gp = f"{c.career_gp}" + (f" → {c.career_gp_end:.0f}" if round(c.career_gp_end) != c.career_gp else "")
+        t.add_row(
+            labels[c.choice],
+            c.row.name,
+            c.row.positions,
+            f"{c.age:.0f}" if c.age is not None else "?",
+            gp,
+            clock,
+            f"{c.yearly[0]:.0f}" if c.yearly else "–",
+            f"{c.yearly[-1]:.0f}" if c.yearly else "–",
+            f"{c.value:.0f}" if c.choice != "release" else "",
+            "; ".join(c.notes),
+        )
+    out: list = [t]
+    tags = [c.row.name for c in p.candidates if c.choice == "regular+tag"]
+    out.append(
+        f"[bold]Regular keepers:[/] {len(p.chosen('regular'))}/{p.rules.regular} · "
+        f"[bold]franchise tags:[/] {', '.join(tags) or 'none needed'} ({len(tags)}/{p.rules.tags}) · "
+        f"[bold]minors:[/] {len(p.chosen('minors'))}/{p.rules.minors} · total value {p.total:.0f}"
+    )
+    out.append(
+        f"[dim]Keeper value = projected points above the keeper line ({p.keeper_line:.0f} next-season FP, "
+        f"about what the draft replaces a keeper with), for each season he can still be kept; minors use raw "
+        "points. Ages as of next Oct 1; age curve in hockey/keeper/aging.py.[/]"
+    )
+    if p.warnings:
+        out.append("\n".join(f"[yellow]![/] {w}" for w in p.warnings))
+    out.append(
+        "[dim]Clock data comes from data/keepers.yaml: keep it current (times kept, tags, removed tags).[/]"
+    )
+    if p.uses_moneypuck:
+        out.append(f"[dim]{CREDIT}[/]")
+    return out
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")

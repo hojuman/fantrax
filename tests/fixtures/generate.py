@@ -636,3 +636,37 @@ for i, (start, away, home, gtype) in enumerate(GAMES):
 (F / "nhl_schedule.json").write_text(
     json.dumps([{"date": d, "games": g} for d, g in sorted(days.items())], indent=1)
 )
+
+# ------------------------------------------------------------------ player landing pages (career GP)
+CAREER_GP = {
+    8478402: 750,
+    8478427: 700,
+    8480222: 420,
+    8477969: 600,
+    8480012: 610,
+    8483678: 100,
+    8482116: 360,
+    8483515: 300,
+    8478483: 700,
+    8476468: 950,
+    8475158: 1150,
+    8480800: 480,
+    8481559: 440,
+    8477967: 320,
+    8477424: 450,
+    8484999: 6,  # 8485555 (Newby) has no NHL games: no careerTotals at all
+}
+landing = {}
+for pid, fn, ln, pos, team, bd in NHL:
+    page = {
+        "playerId": pid,
+        "firstName": {"default": fn},
+        "lastName": {"default": ln},
+        "position": pos,
+        "birthDate": bd,
+        "currentTeamAbbrev": team,
+    }
+    if pid in CAREER_GP:
+        page["careerTotals"] = {"regularSeason": {"gamesPlayed": CAREER_GP[pid], "goals": 0}}
+    landing[str(pid)] = page
+(F / "nhl_landing.json").write_text(json.dumps(landing, indent=1, ensure_ascii=False))

@@ -17,6 +17,7 @@ uv run hockey lineup                     # best lineup for the next weekly lock
 uv run hockey lineup --out "Sebastian Aho"   # ...with a player you know is hurt (full name)
 uv run hockey waivers                    # best pickups, your weak spots, streamers for the week
 uv run hockey trade "Alex Tuch" "Connor McDavid" --give-pick 2027:1   # evaluate a trade for both sides
+uv run hockey keepers                    # multi-year keeper value and the best 10 + 5 (fill in data/keepers.yaml)
 uv run hockey ids --unmatched
 uv run pytest               # offline tests
 ```

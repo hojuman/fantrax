@@ -61,6 +61,9 @@ class FakeHttp:
             return Response(
                 full, 200, json.dumps({"data": rows[start : start + limit], "total": len(rows)}), False
             )
+        if "/landing" in path:
+            page = load("nhl_landing.json").get(path.split("/")[-2])
+            return Response(full, 200 if page else 404, json.dumps(page) if page else "not found", False)
         if "/schedule/" in path:
             first = date.fromisoformat(path.rsplit("/", 1)[1])
             week = [

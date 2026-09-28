@@ -248,6 +248,12 @@ class NhlClient:
             day += timedelta(days=7)
         return sorted((g for g in games.values() if start <= g.start_utc < end), key=lambda g: g.start_utc)
 
+    def career(self, nhl_id: int) -> Career:
+        resp = self.http.get(f"{WEB}/player/{nhl_id}/landing", ttl=DAY)
+        if resp.status != 200:
+            raise FetchError(resp.url, resp.status, "NHL player landing failed")
+        return parse_landing(resp.json(), nhl_id)
+
     def team_games_played(self) -> dict[str, int]:
         """Games played so far by each team, from the standings on ``today``."""
         resp = self.http.get(f"{WEB}/standings/{self.today.isoformat()}", ttl=6 * HOUR)
@@ -313,6 +319,21 @@ def parse_schedule(data: dict) -> list[Game]:
                 start = datetime.fromisoformat(g["startTimeUTC"].replace("Z", "+00:00"))
                 games.append(Game(start, home, away))
     return games
+
+
+@dataclass(frozen=True)
+class Career:
+    nhl_id: int
+    gp: int  # career regular-season games played (including this season so far)
+    birth_date: str | None
+
+
+def parse_landing(data: dict, nhl_id: int) -> Career:
+    """/v1/player/{id}/landing: careerTotals.regularSeason.gamesPlayed and birthDate. Players with no
+    NHL games have no careerTotals, which means 0."""
+    reg = (data.get("careerTotals") or {}).get("regularSeason") or {}
+    gp = reg.get("gamesPlayed")
+    return Career(nhl_id, int(gp) if isinstance(gp, int) else 0, data.get("birthDate"))
 
 
 def parse_standings(data: dict) -> dict[str, int]:

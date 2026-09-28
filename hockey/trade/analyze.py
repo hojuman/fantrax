@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
+from hockey.keeper.aging import age_factor
 from hockey.keepers import KeeperEntry
 from hockey.lineup.optimize import SLOTS
 from hockey.lineup.report import LINEUP_STATUSES, eligible_slots
@@ -114,9 +115,12 @@ class TradeReport:
         return "Bad for both sides"
 
 
-def next_season_value(row: RosterRow) -> float:
+def next_season_value(row: RosterRow, age_now: float | None = None) -> float:
+    """Next season's projected points; with ``age_now`` (age this season), aged one year."""
     p = row.projection
-    return p.fp_per_gp * p.games_share * SEASON_GAMES if p else 0.0
+    if not p:
+        return 0.0
+    return p.fp_per_gp * p.games_share * SEASON_GAMES * age_factor(age_now, row.pos_group)
 
 
 def replacement_levels(pool: list[RosterRow], teams: int, slots: dict[str, int]) -> dict[str, float]:
@@ -163,6 +167,7 @@ def analyze(
     get_picks: list[Pick] | None = None,
     keepers: dict[str, KeeperEntry] | None = None,
     keeper_weight: float = KEEPER_WEIGHT,
+    ages: dict[int, float] | None = None,
 ) -> TradeReport:
     give_picks, get_picks, keepers = give_picks or [], get_picks or [], keepers or {}
     slots = roster_cfg.get("active") or SLOTS
@@ -180,8 +185,10 @@ def analyze(
     ranked = ranked_next_season(pool)
     keeper_line = at_rank(ranked, teams * regular_keepers)
 
+    ages = ages or {}
+
     def piece(r: RosterRow) -> Piece:
-        nxt = next_season_value(r)
+        nxt = next_season_value(r, ages.get(r.nhl_id) if r.nhl_id else None)
         ros = r.projection.ros_fp if r.projection else 0.0
         elig = eligible_slots(r)
         vor = max((ros - replacement.get(p, 0.0) for p in elig), default=0.0)

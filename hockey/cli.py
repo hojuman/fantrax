@@ -407,6 +407,20 @@ def waivers(
         console.print(part)
 
 
+def _ages_this_season(conn) -> dict[int, float]:
+    """NHL id -> age at the start of this season, from birth dates stored with the NHL rosters."""
+    from hockey.keeper.aging import age_on, season_start
+    from hockey.sources.nhl import current_season
+
+    start = season_start(current_season(date.today()) // 10000)
+    ages = {}
+    for r in conn.execute("SELECT nhl_id, birth_date FROM nhl_player WHERE birth_date IS NOT NULL"):
+        age = age_on(r["birth_date"], start)
+        if age is not None:
+            ages[r["nhl_id"]] = age
+    return ages
+
+
 def _resolve(names: str, rows, where: str):
     """Comma-separated names (or Fantrax ids) -> RosterRows from ``rows``; exits on unknown/ambiguous."""
     from hockey.idmap.normalize import basic
@@ -501,11 +515,70 @@ def trade(
             get_picks=[Pick.parse(p) for p in get_pick or []],
             keepers=load_keepers(),
             keeper_weight=keeper_weight,
+            ages=_ages_this_season(conn),
         )
     except TradeError as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1) from e
     for part in trade_tables(report):
+        console.print(part)
+
+
+@app.command()
+def keepers(
+    horizon: int = typer.Option(3, help="Seasons of future value to count."),
+    keepers_file: Path = typer.Option(None, help="Keeper clock file (default: data/keepers.yaml)."),
+    team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+) -> None:
+    """Rank your players by multi-year keeper value and pick the best 10 + 5 under the league rules."""
+    from hockey.keeper.aging import age_on, season_start
+    from hockey.keeper.plan import Rules, build_candidate, plan
+    from hockey.keepers import load_keepers
+    from hockey.sources.nhl import NhlClient, current_season
+    from hockey.trade.analyze import at_rank, ranked_next_season
+    from hockey.views.tables import keeper_tables
+
+    settings, conn, http = _open()
+    if team:
+        settings.my_team_name, settings.my_team_short = team, team
+    me = find_my_team(conn, settings)
+    if me is None:
+        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
+        raise typer.Exit(1)
+    rules = Rules.from_league(settings.league)
+    valuer = Valuer(conn, load_rules(conn), settings.league)
+    roster = valuer.team_roster(me["team_id"])
+    teams = int(settings.league.get("teams", 10))
+    keeper_line = at_rank(ranked_next_season(valuer.league_players()), teams * rules.regular)
+    next_start = season_start(current_season(date.today()) // 10000 + 1)
+    nhl = NhlClient(http, date.today())
+    entries = load_keepers(keepers_file)
+    cands = []
+    try:
+        for r in roster:
+            if r.nhl_id:
+                career = nhl.career(r.nhl_id)
+                gp, birth, known = career.gp, career.birth_date, True
+            else:
+                gp, birth, known = 0, None, False
+            cands.append(
+                build_candidate(
+                    r,
+                    age_next=age_on(birth, next_start),
+                    career_gp=gp,
+                    known_career=known,
+                    entry=entries.get(r.fantrax_id),
+                    keeper_line=keeper_line,
+                    rules=rules,
+                    horizon=horizon,
+                )
+            )
+    except FetchError as e:
+        console.print(f"[bold red]Couldn't load NHL career data:[/] {e}")
+        raise typer.Exit(1) from e
+    finally:
+        http.close()
+    for part in keeper_tables(me["name"], plan(cands, rules, keeper_line), horizon):
         console.print(part)
 
 

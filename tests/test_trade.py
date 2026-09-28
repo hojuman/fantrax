@@ -173,3 +173,23 @@ def test_cli_trade_errors(cli_db):
         cli.app, ["trade", "Stutzle", "-", "--get-pick", "2027:1", "--partner", "T02"], env={"COLUMNS": "200"}
     )
     assert ok.exit_code == 0, ok.output
+
+
+def test_next_season_value_is_aged(league):
+    from hockey.trade.analyze import next_season_value
+
+    v, pool = league
+    mcd = next(r for r in pool if r.fantrax_id == "04abc")
+    base = next_season_value(mcd)
+    assert next_season_value(mcd, 24.0) == pytest.approx(base * 1.03)  # still improving
+    assert next_season_value(mcd, 33.0) < base  # declining
+    r = run(
+        v,
+        pool,
+        rows(v, MINE, "05stu"),
+        rows(v, T2, "04abc"),
+        their=T2,
+        their_name="Team 02",
+        ages={8478402: 36.0},
+    )
+    assert r.me.receives[0].next_season == pytest.approx(base * 0.88)

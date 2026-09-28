@@ -1,0 +1,302 @@
+{
+ "8478402": {
+  "playerId": 8478402,
+  "firstName": {
+   "default": "Connor"
+  },
+  "lastName": {
+   "default": "McDavid"
+  },
+  "position": "C",
+  "birthDate": "1997-01-13",
+  "currentTeamAbbrev": "EDM",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 750,
+    "goals": 0
+   }
+  }
+ },
+ "8478427": {
+  "playerId": 8478427,
+  "firstName": {
+   "default": "Sebastian"
+  },
+  "lastName": {
+   "default": "Aho"
+  },
+  "position": "C",
+  "birthDate": "1997-07-26",
+  "currentTeamAbbrev": "CAR",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 700,
+    "goals": 0
+   }
+  }
+ },
+ "8480222": {
+  "playerId": 8480222,
+  "firstName": {
+   "default": "Sebastian"
+  },
+  "lastName": {
+   "default": "Aho"
+  },
+  "position": "D",
+  "birthDate": "1996-02-17",
+  "currentTeamAbbrev": "PIT",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 420,
+    "goals": 0
+   }
+  }
+ },
+ "8477969": {
+  "playerId": 8477969,
+  "firstName": {
+   "default": "Marcus"
+  },
+  "lastName": {
+   "default": "Pettersson"
+  },
+  "position": "D",
+  "birthDate": "1996-05-08",
+  "currentTeamAbbrev": "NYR",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 600,
+    "goals": 0
+   }
+  }
+ },
+ "8480012": {
+  "playerId": 8480012,
+  "firstName": {
+   "default": "Elias"
+  },
+  "lastName": {
+   "default": "Pettersson"
+  },
+  "position": "C",
+  "birthDate": "1998-11-12",
+  "currentTeamAbbrev": "VAN",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 610,
+    "goals": 0
+   }
+  }
+ },
+ "8483678": {
+  "playerId": 8483678,
+  "firstName": {
+   "default": "Elias"
+  },
+  "lastName": {
+   "default": "Pettersson"
+  },
+  "position": "D",
+  "birthDate": "2004-02-16",
+  "currentTeamAbbrev": "VAN",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 100,
+    "goals": 0
+   }
+  }
+ },
+ "8482116": {
+  "playerId": 8482116,
+  "firstName": {
+   "default": "Tim"
+  },
+  "lastName": {
+   "default": "Stützle"
+  },
+  "position": "C",
+  "birthDate": "2002-01-15",
+  "currentTeamAbbrev": "OTT",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 360,
+    "goals": 0
+   }
+  }
+ },
+ "8483515": {
+  "playerId": 8483515,
+  "firstName": {
+   "default": "Juraj"
+  },
+  "lastName": {
+   "default": "Slafkovský"
+  },
+  "position": "L",
+  "birthDate": "2004-03-30",
+  "currentTeamAbbrev": "MTL",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 300,
+    "goals": 0
+   }
+  }
+ },
+ "8478483": {
+  "playerId": 8478483,
+  "firstName": {
+   "default": "Mitch"
+  },
+  "lastName": {
+   "default": "Marner"
+  },
+  "position": "R",
+  "birthDate": "1997-05-05",
+  "currentTeamAbbrev": "VGK",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 700,
+    "goals": 0
+   }
+  }
+ },
+ "8476468": {
+  "playerId": 8476468,
+  "firstName": {
+   "default": "J.T."
+  },
+  "lastName": {
+   "default": "Miller"
+  },
+  "position": "C",
+  "birthDate": "1993-03-14",
+  "currentTeamAbbrev": "NYR",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 950,
+    "goals": 0
+   }
+  }
+ },
+ "8475158": {
+  "playerId": 8475158,
+  "firstName": {
+   "default": "Ryan"
+  },
+  "lastName": {
+   "default": "O'Reilly"
+  },
+  "position": "C",
+  "birthDate": "1991-02-07",
+  "currentTeamAbbrev": "NSH",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 1150,
+    "goals": 0
+   }
+  }
+ },
+ "8480800": {
+  "playerId": 8480800,
+  "firstName": {
+   "default": "Quinn"
+  },
+  "lastName": {
+   "default": "Hughes"
+  },
+  "position": "D",
+  "birthDate": "1999-10-14",
+  "currentTeamAbbrev": "VAN",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 480,
+    "goals": 0
+   }
+  }
+ },
+ "8481559": {
+  "playerId": 8481559,
+  "firstName": {
+   "default": "Jack"
+  },
+  "lastName": {
+   "default": "Hughes"
+  },
+  "position": "C",
+  "birthDate": "2001-05-14",
+  "currentTeamAbbrev": "NJD",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 440,
+    "goals": 0
+   }
+  }
+ },
+ "8477967": {
+  "playerId": 8477967,
+  "firstName": {
+   "default": "Thatcher"
+  },
+  "lastName": {
+   "default": "Demko"
+  },
+  "position": "G",
+  "birthDate": "1995-12-08",
+  "currentTeamAbbrev": "VAN",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 320,
+    "goals": 0
+   }
+  }
+ },
+ "8477424": {
+  "playerId": 8477424,
+  "firstName": {
+   "default": "Juuse"
+  },
+  "lastName": {
+   "default": "Saros"
+  },
+  "position": "G",
+  "birthDate": "1995-04-19",
+  "currentTeamAbbrev": "NSH",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 450,
+    "goals": 0
+   }
+  }
+ },
+ "8484999": {
+  "playerId": 8484999,
+  "firstName": {
+   "default": "Callup"
+  },
+  "lastName": {
+   "default": "Rookie"
+  },
+  "position": "D",
+  "birthDate": "2005-01-01",
+  "currentTeamAbbrev": "CAR",
+  "careerTotals": {
+   "regularSeason": {
+    "gamesPlayed": 6,
+    "goals": 0
+   }
+  }
+ },
+ "8485555": {
+  "playerId": 8485555,
+  "firstName": {
+   "default": "Rookie"
+  },
+  "lastName": {
+   "default": "Newby"
+  },
+  "position": "C",
+  "birthDate": "2007-02-01",
+  "currentTeamAbbrev": "CAR"
+ }
+}

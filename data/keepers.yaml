@@ -1,5 +1,5 @@
 # Keeper clock, maintained by hand (Fantrax doesn't track the league's custom keeper rules).
-# Used from Phase 6 (keeper valuation). One entry per player you might keep.
+# Read by `hockey keepers`, `hockey waivers` and `hockey trade`. One entry per player you might keep.
 #
 #   player:           display name (for humans)
 #   fantrax_id:       from `hockey roster` (column "FX id")
@@ -7,7 +7,8 @@
 #   franchise_tag:    true if currently tagged (max 4)
 #   tag_removed:      true if a tag was ever removed from him (can't be re-tagged)
 #
-# Minors (< 165 NHL GP) don't need a clock entry; career GP is checked automatically.
+# Minors (career + current regular-season GP <= 165) don't need a clock entry: `hockey keepers` checks
+# career GP automatically. Traded players: set times_kept back to 0 (the clock resets on a trade).
 players: []
 #  - player: Example Player
 #    fantrax_id: "0abcd"

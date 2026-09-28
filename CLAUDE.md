@@ -30,6 +30,7 @@ uv run hockey player NAME|FXID  # every component behind one projection (prior, 
 uv run hockey lineup [--period N] [--current] [--out NAME ...]  # best lineup for the next weekly lock
 uv run hockey waivers [--pos D] [--protect NAME ...] [--max-ros-cost 10] [--period N]  # pickups + streamers
 uv run hockey trade "GIVE, ..." "GET, ..." [--give-pick 2027:2] [--get-pick 2027:1] [--partner T] [--keeper-weight 0.5]
+uv run hockey keepers [--horizon 3] [--keepers-file PATH]  # multi-year keeper value + best 10+5 with tags
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -43,6 +44,7 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 | NHL stats REST | `api.nhle.com/stats/rest/en/{skater,goalie}/{summary,realtime,faceoffwins}` (paginated 100/page, `cayenneExp=gameTypeId=2 and seasonId=YYYYYYYY`) | none | past seasons forever, current 6h |
 | NHL stats REST, recent form | same reports with `and gameDate>="…" and gameDate<="…"` for last 14/30 days (in season only) | none | 6h |
 | NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this), `/v1/standings/{date}` (team GP, in season), `/v1/schedule/{date}` (7-day `gameWeek`; `gameType` 2 = regular season, `startTimeUTC`, `homeTeam/awayTeam.abbrev`) | none | 24h / 6h / 12h |
+| NHL player landing | `api-web.nhle.com/v1/player/{id}/landing`: `careerTotals.regularSeason.gamesPlayed` (absent = 0 GP), `birthDate`. Fetched per player by `hockey keepers` (your roster only) | none | 24h |
 | MoneyPuck | `moneypuck.com/moneypuck/playerData/seasonSummary/{startYear}/regular/{skaters,goalies}.csv`; `playerId` = NHL id; rows per `situation` (we read `all` + `5on4`); `icetime` in seconds. Columns read: skaters `I_F_xGoals, I_F_goals, I_F_shotsOnGoal, games_played, icetime`; goalies `xGoals, goals, ongoal`. Column names are unverified until `hockey probe` runs; the parser fails loudly with the real header | none | past ∞, current 24h (404 before opening night is fine) |
 
 League scoring (Fantrax, verified 2026-09-29), H2H points. Skaters: G 2, A 1.5, +/- 0.25, PPP 0.5,
@@ -117,6 +119,23 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
   list the candidates; everything you receive must come from one team (`--partner` for picks-only).
 - No age curve yet (Phase 6). Draft picks aren't read from Fantrax (`getDraftPicks` unverified).
 
+## Keepers (Phase 6, `hockey/keeper/`)
+- **Rules**: 10 regular + 5 minors, 4 franchise tags, max 3 keeps per regular player. The clock is off while
+  minors-eligible and resets on a trade. A removed tag can never go back on that player, and untagging a
+  player kept 3+ times makes him unkeepable (both enforced in `plan.build_candidate`).
+- **Minors eligibility** is judged at keeper time: career GP (landing) + projected rest-of-season GP ≤ 165.
+  Players about to cross it get a "graduates" note. No-NHL-record players are assumed minors-eligible
+  with unknown age.
+- **Value** = each future season's projected points (this season's value aged with `aging.py`: YoY
+  factor by age and position), discounted 0.85/yr, for as many seasons as he can be kept (horizon 3;
+  untagged = min(horizon, 3 − times_kept) unless minors-eligible). Regular slots count points above the
+  keeper line (the ~100th player's next-season value); minors slots count raw points. Minors-eligible
+  players not yet playing much are assumed ~30% of games (about 25) next season.
+- **Best set**: exact DP over (regular, tags, minors) with options release / minors / regular /
+  regular+tag. It warns when a tag moves (permanent), a tagged player is released, clock entries are
+  missing from keepers.yaml, or regular slots go unused.
+- The trade analyzer's next-season value is aged one year too (birth dates from NHL rosters).
+
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
    (10 teams, pool 8,747, 8 skater + 4 goalie scoring codes), getTeamRosters (248 rows), and
@@ -190,7 +209,7 @@ blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed 
 games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
 `lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
-`keepers.py` ·
+`keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) ·
 `sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
@@ -206,6 +225,6 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
    ROS-cost limit, schedule density, keeper/--protect protection, no-record prospects excluded.
 5. ✅ Trade analyzer (`hockey trade`): both-sides roster fit (lineup DP), value over replacement,
    keeper value above the keeper line, draft-pick value, roster overflow, keeper-clock notes.
-6. Keepers: age curve, `data/keepers.yaml` clock (3-time limit, 4 franchise tags, tag removal
-   rule, reset on trade), 165-GP minors rule from career GP; optimal 10+5 set.
+6. ✅ Keepers (`hockey keepers`): age curve, keeper clock + tag rules from `data/keepers.yaml`,
+   165-GP minors rule from career GP at keeper time, exact best 10 + 5 with tag assignment.
 7. League intel + daily markdown report.
