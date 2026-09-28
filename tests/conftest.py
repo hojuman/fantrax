@@ -61,6 +61,12 @@ class FakeHttp:
             return Response(
                 full, 200, json.dumps({"data": rows[start : start + limit], "total": len(rows)}), False
             )
+        if "/schedule/" in path:
+            first = date.fromisoformat(path.rsplit("/", 1)[1])
+            week = [
+                d for d in load("nhl_schedule.json") if 0 <= (date.fromisoformat(d["date"]) - first).days < 7
+            ]
+            return Response(full, 200, json.dumps({"gameWeek": week}), False)
         if "/standings/" in path:
             return Response(full, 200, (FIXTURES / "nhl_standings.json").read_text(), False)
         if parts.hostname == "moneypuck.com":

@@ -600,3 +600,39 @@ for i, (fid, name, team, pos, status, st) in enumerate(rows, 1):
     )
 (F / "fantrax_players.csv").write_text(buf.getvalue())
 print("fixtures written")
+
+# ------------------------------------------------------------------ schedule, roster period 2
+# Period 2 runs 2026-10-05 19:00 ET (23:00 UTC) to 2026-10-12 12:59:59 ET (16:59:59 UTC).
+GAMES = [  # startTimeUTC, away, home, gameType
+    ("2026-10-05T22:59:00Z", "MTL", "TOR", 2),  # 18:59 ET: before the lock -> not in period 2
+    ("2026-10-05T23:00:00Z", "BOS", "OTT", 2),  # 19:00 ET: exactly at the lock -> counts
+    ("2026-10-06T23:00:00Z", "NSH", "CAR", 2),
+    ("2026-10-06T23:30:00Z", "CAR", "WSH", 1),  # preseason game type: ignored
+    ("2026-10-07T02:00:00Z", "VAN", "EDM", 2),
+    ("2026-10-08T02:00:00Z", "VGK", "VAN", 2),  # VAN back-to-back (24 h later)
+    ("2026-10-08T23:00:00Z", "CAR", "PIT", 2),
+    ("2026-10-08T23:30:00Z", "OTT", "NJD", 2),
+    ("2026-10-09T23:00:00Z", "EDM", "NSH", 2),
+    ("2026-10-10T02:00:00Z", "NJD", "VGK", 2),
+    ("2026-10-10T23:00:00Z", "PIT", "CAR", 2),
+    ("2026-10-11T19:00:00Z", "CAR", "OTT", 2),  # CAR back-to-back
+    ("2026-10-11T23:00:00Z", "NSH", "EDM", 2),
+    ("2026-10-12T02:00:00Z", "VGK", "NJD", 2),
+    ("2026-10-12T17:00:00Z", "VAN", "NYR", 2),  # 13:00 ET: after period 2 ends
+]
+days: dict[str, list] = {}
+for i, (start, away, home, gtype) in enumerate(GAMES):
+    local_day = start[:10]
+    days.setdefault(local_day, []).append(
+        {
+            "id": 2026020000 + i,
+            "season": 20262027,
+            "gameType": gtype,
+            "startTimeUTC": start,
+            "awayTeam": {"abbrev": away},
+            "homeTeam": {"abbrev": home},
+        }
+    )
+(F / "nhl_schedule.json").write_text(
+    json.dumps([{"date": d, "games": g} for d, g in sorted(days.items())], indent=1)
+)

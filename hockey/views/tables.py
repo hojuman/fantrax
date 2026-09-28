@@ -263,6 +263,108 @@ def player_tables(r: RosterRow, rules: ScoringRules) -> list:
     return out
 
 
+def _games_cell(w) -> str:
+    cell = str(w.avail.games)
+    if w.row.pos_group == "G" and w.avail.games:
+        cell += f" ({w.avail.expected:.1f} st)"
+    if w.avail.b2b:
+        cell += " b2b" if w.avail.b2b == 1 else f" {w.avail.b2b}×b2b"
+    return cell
+
+
+def lineup_tables(team_name: str, r, now) -> list:
+    """Renderables for a LineupReport (hockey/lineup/report.py)."""
+    local_lock = r.period.start.astimezone()
+    hours = (r.period.start - now).total_seconds() / 3600
+    when = f"locks in {hours:.0f} h" if hours > 0 else "already locked (in progress)"
+    head = (
+        f"[bold]{team_name}: lineup for period {r.period.number}[/] · "
+        f"{r.period.start.astimezone():%a %b %d} → {r.period.end.astimezone():%a %b %d} · "
+        f"lock {local_lock:%a %b %d %H:%M %Z} ({when}) · {r.games_in_period} NHL games"
+    )
+    out: list = [head]
+
+    t = Table(title="Recommended actives", title_justify="left")
+    for col, just in [
+        ("Slot", "left"),
+        ("Player", "left"),
+        ("Pos", "left"),
+        ("NHL", "left"),
+        ("Games", "right"),
+        ("FP/GP", "right"),
+        ("Exp FP", "right"),
+        ("Change", "left"),
+    ]:
+        t.add_column(col, justify=just, no_wrap=True)
+    for w in r.starters:
+        change = "stays" if w.status == "ACTIVE" else f"[green]↑ from {w.status.title() or 'bench'}[/]"
+        t.add_row(
+            w.slot,
+            w.row.name,
+            w.row.positions,
+            w.row.nhl_team or "",
+            _games_cell(w),
+            f"{w.fp_per_gp:.2f}",
+            f"{w.value:.1f}",
+            change,
+        )
+    for pos, n in r.empty.items():
+        for _ in range(n):
+            t.add_row(pos, "[red](empty)[/]", "", "", "", "", "", "")
+    t.add_section()
+    t.add_row("", "[bold]Total[/]", "", "", "", "", f"[bold]{r.total:.1f}[/]", "")
+    out.append(t)
+
+    if r.bench or r.others:
+        b = Table(title="Bench, IR and Minors", title_justify="left")
+        for col, just in [
+            ("Status", "left"),
+            ("Player", "left"),
+            ("Pos", "left"),
+            ("NHL", "left"),
+            ("Games", "right"),
+            ("Exp FP", "right"),
+            ("Why not starting", "left"),
+        ]:
+            b.add_column(col, justify=just, no_wrap=col != "Why not starting")
+        for w in r.bench + r.others:
+            if w.avail.out:
+                why = w.avail.flags[0]
+            elif w.status in ("INJURED_RESERVE", "MINORS"):
+                why = "IR slot" if w.status == "INJURED_RESERVE" else "Minors slot"
+            elif w.avail.games == 0:
+                why = "no games"
+            else:
+                why = "lower projected value"
+            b.add_row(
+                w.status.title().replace("_", " ") or "?",
+                w.row.name,
+                w.row.positions,
+                w.row.nhl_team or "",
+                _games_cell(w),
+                f"{w.value:.1f}",
+                why,
+            )
+        out.append(b)
+
+    if r.moves_in or r.moves_out:
+        lines = ["[bold]Moves to make on Fantrax[/] (this tool never makes them for you):"]
+        lines += [f"  • Move [green]{w.row.name}[/] to Active ({w.slot})" for w in r.moves_in]
+        lines += [f"  • Move [yellow]{w.row.name}[/] to Reserve" for w in r.moves_out]
+        out.append("\n".join(lines))
+    else:
+        out.append("[green]Your current lineup is already optimal.[/]")
+    out.append(
+        f"Projected: current lineup {r.current_total:.1f} FP → recommended {r.total:.1f} FP "
+        f"([bold]{r.gain:+.1f}[/])"
+    )
+    if r.flags:
+        out.append("\n".join(f"[yellow]![/] {f}" for f in r.flags))
+    if r.uses_moneypuck:
+        out.append(f"[dim]{CREDIT}[/]")
+    return out
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")

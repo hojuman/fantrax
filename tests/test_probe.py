@@ -41,10 +41,6 @@ def test_probe_end_to_end_offline(tmp_path):
                 from hockey.http import Response
 
                 return Response(url, 200, MONEYPUCK_LIKE, False)
-            if "/schedule/" in url:
-                from hockey.http import Response
-
-                return Response(url, 200, '{"gameWeek": []}', False)
             return super().get(url, params, **kw)
 
     results = {r.name: r for r in run_probe(Probe(), "testleague", tmp_path, datetime.date(2026, 9, 29))}
@@ -57,3 +53,4 @@ def test_probe_end_to_end_offline(tmp_path):
     assert (tmp_path / "fxea_getLeagueInfo.json").exists()
     assert "players parsed" in results["MoneyPuck 2025/skaters.csv"].detail
     assert results["MoneyPuck 2025/goalies.csv"].ok
+    assert "regular season parsed" in results["NHL schedule/2026-09-29"].detail

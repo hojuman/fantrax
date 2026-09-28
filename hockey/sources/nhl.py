@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from hockey.http import DAY, FOREVER, HOUR, FetchError, HttpClient
@@ -234,6 +234,20 @@ class NhlClient:
             season,
         ) + goalie_lines(self.report("goalie", "summary", season, **kw), season)
 
+    def schedule(self, start: datetime, end: datetime) -> list[Game]:
+        """Regular-season games starting in [start, end). Each call returns a 7-day gameWeek."""
+        games: dict[tuple, Game] = {}
+        day = start.astimezone().date() - timedelta(days=1)  # time zones: start a day early
+        last = end.astimezone().date()
+        while day <= last:
+            resp = self.http.get(f"{WEB}/schedule/{day.isoformat()}", ttl=12 * HOUR)
+            if resp.status != 200:
+                raise FetchError(resp.url, resp.status, "NHL schedule failed")
+            for g in parse_schedule(resp.json()):
+                games[(g.start_utc, g.home, g.away)] = g
+            day += timedelta(days=7)
+        return sorted((g for g in games.values() if start <= g.start_utc < end), key=lambda g: g.start_utc)
+
     def team_games_played(self) -> dict[str, int]:
         """Games played so far by each team, from the standings on ``today``."""
         resp = self.http.get(f"{WEB}/standings/{self.today.isoformat()}", ttl=6 * HOUR)
@@ -273,6 +287,32 @@ class NhlClient:
                 continue
             players.extend(roster_players(resp.json(), team))
         return players, failed
+
+
+@dataclass(frozen=True)
+class Game:
+    start_utc: datetime
+    home: str
+    away: str
+
+    def teams(self) -> tuple[str, str]:
+        return self.home, self.away
+
+
+def parse_schedule(data: dict) -> list[Game]:
+    """/v1/schedule/{date}: {"gameWeek": [{"date", "games": [{gameType, startTimeUTC, homeTeam:{abbrev},
+    awayTeam:{abbrev}}]}]}. Regular-season games only."""
+    games = []
+    for day in data.get("gameWeek") or []:
+        for g in day.get("games") or []:
+            if g.get("gameType") != REGULAR_SEASON or not g.get("startTimeUTC"):
+                continue
+            home = normalize_team((g.get("homeTeam") or {}).get("abbrev"))
+            away = normalize_team((g.get("awayTeam") or {}).get("abbrev"))
+            if home and away:
+                start = datetime.fromisoformat(g["startTimeUTC"].replace("Z", "+00:00"))
+                games.append(Game(start, home, away))
+    return games
 
 
 def parse_standings(data: dict) -> dict[str, int]:

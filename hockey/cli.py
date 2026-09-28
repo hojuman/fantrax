@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date
+from datetime import UTC, date
 from pathlib import Path
 
 import typer
@@ -279,6 +279,69 @@ def player(name: str = typer.Argument(..., help="Player name (or part of it), or
         console.print("Pass the FX id to pick one, e.g. `hockey player 03rmx`.")
         raise typer.Exit(1)
     for part in player_tables(matches[0], rules):
+        console.print(part)
+
+
+@app.command()
+def lineup(
+    period: int = typer.Option(None, help="Roster period number (default: the next lineup lock)."),
+    current: bool = typer.Option(False, "--current", help="Show the period in progress (already locked)."),
+    out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
+    team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+) -> None:
+    """Recommend the best lineup for a weekly lock: games scheduled, goalie starts, availability."""
+    from datetime import datetime
+
+    from hockey.db import get_meta
+    from hockey.lineup.periods import current_period, next_period, parse_periods
+    from hockey.lineup.report import build_report
+    from hockey.sources.nhl import NhlClient
+    from hockey.views.tables import lineup_tables
+
+    settings, conn, http = _open()
+    if team:
+        settings.my_team_name, settings.my_team_short = team, team
+    row = find_my_team(conn, settings)
+    if row is None:
+        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
+        raise typer.Exit(1)
+    periods = parse_periods(get_meta(conn, "roster_periods") or [])
+    if not periods:
+        console.print(
+            "[red]No roster periods stored.[/] Run `hockey sync` (they come from Fantrax getLeagueInfo)."
+        )
+        raise typer.Exit(1)
+    now = datetime.now(UTC)
+    if period is not None:
+        chosen = next((p for p in periods if p.number == period), None)
+    elif current:
+        chosen = current_period(periods, now)
+    else:
+        chosen = next_period(periods, now)
+    if chosen is None:
+        console.print(f"[red]No matching roster period[/] (known: {periods[0].number}–{periods[-1].number}).")
+        raise typer.Exit(1)
+    try:
+        games = NhlClient(http, date.today()).schedule(chosen.start, chosen.end)
+    except FetchError as e:
+        console.print(f"[bold red]Couldn't load the NHL schedule:[/] {e}")
+        raise typer.Exit(1) from e
+    finally:
+        http.close()
+    league_roster = settings.league.get("roster") or {}
+    report = build_report(
+        Valuer(conn, load_rules(conn), settings.league),
+        row["team_id"],
+        chosen,
+        games,
+        out or [],
+        slots=league_roster.get("active") or None,
+        reserve_max=league_roster.get("reserve", 6),
+        ir_max=league_roster.get("injured_reserve", 3),
+    )
+    if not games:
+        console.print(f"[yellow]No regular-season NHL games in period {chosen.number}.[/]")
+    for part in lineup_tables(row["name"], report, now):
         console.print(part)
 
 

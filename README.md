@@ -13,6 +13,8 @@ uv run hockey sync          # pull + cache everything into var/hockey.db
 uv run hockey roster        # your roster with projected fantasy value
 uv run hockey rank --pos D --available   # best free-agent defencemen
 uv run hockey player "Quinn Hughes"      # why a player projects where he does
+uv run hockey lineup                     # best lineup for the next weekly lock
+uv run hockey lineup --out "Sebastian Aho"   # ...with a player you know is hurt (full name)
 uv run hockey ids --unmatched
 uv run pytest               # offline tests
 ```

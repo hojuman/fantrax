@@ -231,7 +231,21 @@ def run_probe(
         results.append(ProbeResult(f"NHL roster/VAN/{cur}", True, "200", _shape(d)))
     d = get_json("nhl_schedule", f"{WEB}/schedule/{today.isoformat()}")
     if d is not None:
-        results.append(ProbeResult(f"NHL schedule/{today.isoformat()}", True, "200", _shape(d)))
+        from hockey.sources.nhl import parse_schedule
+
+        days = d.get("gameWeek") or []
+        raw = [g for day in days for g in (day.get("games") or [])]
+        parsed = parse_schedule(d)
+        first = sorted(raw[0]) if raw else []
+        results.append(
+            ProbeResult(
+                f"NHL schedule/{today.isoformat()}",
+                bool(days),
+                "200",
+                f"{len(days)} days, {len(raw)} games ({len(parsed)} regular season parsed); "
+                f"game fields: {', '.join(first[:12]) or 'none'}",
+            )
+        )
 
     # --- MoneyPuck: terms first; data is only used after you've read these.
     try:

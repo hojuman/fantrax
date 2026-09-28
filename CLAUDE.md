@@ -27,6 +27,7 @@ uv run hockey sync [--refresh] [--skip-moneypuck]  # Fantrax + NHL + MoneyPuck +
 uv run hockey roster [--team X] # roster: FP/GP, rest-of-season games + FP, top components, basis
 uv run hockey rank [--pos D] [--available] [--owner TBB] [--sort ros] [--limit N]
 uv run hockey player NAME|FXID  # every component behind one projection (prior, season, L30, L14, weights)
+uv run hockey lineup [--period N] [--current] [--out NAME ...]  # best lineup for the next weekly lock
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -39,7 +40,7 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 | Fantrax CSV (manual) | Players page / roster → Download CSV → `hockey import-csv` | user's browser | n/a |
 | NHL stats REST | `api.nhle.com/stats/rest/en/{skater,goalie}/{summary,realtime,faceoffwins}` (paginated 100/page, `cayenneExp=gameTypeId=2 and seasonId=YYYYYYYY`) | none | past seasons forever, current 6h |
 | NHL stats REST, recent form | same reports with `and gameDate>="…" and gameDate<="…"` for last 14/30 days (in season only) | none | 6h |
-| NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this), `/v1/standings/{date}` (team GP, in season) | none | 24h / 6h |
+| NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this), `/v1/standings/{date}` (team GP, in season), `/v1/schedule/{date}` (7-day `gameWeek`; `gameType` 2 = regular season, `startTimeUTC`, `homeTeam/awayTeam.abbrev`) | none | 24h / 6h / 12h |
 | MoneyPuck | `moneypuck.com/moneypuck/playerData/seasonSummary/{startYear}/regular/{skaters,goalies}.csv`; `playerId` = NHL id; rows per `situation` (we read `all` + `5on4`); `icetime` in seconds. Columns read: skaters `I_F_xGoals, I_F_goals, I_F_shotsOnGoal, games_played, icetime`; goalies `xGoals, goals, ongoal`. Column names are unverified until `hockey probe` runs; the parser fails loudly with the real header | none | past ∞, current 24h (404 before opening night is fine) |
 
 League scoring (Fantrax, verified 2026-09-29), H2H points. Skaters: G 2, A 1.5, +/- 0.25, PPP 0.5,
@@ -64,6 +65,21 @@ MoneyPuck terms (read 2026-09-29): "free to use for non-commercial purposes… P
 MoneyPuck.com in all cases where you are showing anything using our data as an input." The user
 approved it: **every output that uses MoneyPuck data must show `sources.moneypuck.CREDIT`.** The roster,
 rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; keep it that way for new views.
+
+## Lineups (Phase 3, `hockey/lineup/`)
+- Weekly locks come from Fantrax `rosterPeriods` (stored in meta; e.g. period 2 = 2026-10-05 19:00 ET →
+  2026-10-12 12:59 ET). Default target = the next period that hasn't started. Games count when
+  `start <= startTimeUTC < end`.
+- **Availability has no injury feed, by design** (no ToS-safe source). Signals: an IR slot, `--out NAME`
+  (accent/case-insensitive), and the projection's games share (drops when a player sits while his
+  team plays → "hasn't played lately" flag). Out players are never started, even into an empty slot.
+- Goalies: expected starts per game = games_share × gs rate. Heuristic: on the 2nd night of a
+  back-to-back (≤30 h apart), a goalie with start share > 0.6 gets half. Shown as "b2b".
+- Optimizer (`optimize.py`): exact DP over slot-fill states (405) × players; a test checks it against
+  brute force. Zero-game players fill otherwise-empty slots (and get flagged).
+- Report: recommended actives, bench with reasons, plain-language moves (never sent to Fantrax), the
+  current-vs-recommended gain, and flags: empty slots, 0-game starters, healthy-looking IR players,
+  Minors promotions worth considering, reserve > 6 / IR > 3.
 
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
@@ -134,7 +150,8 @@ docstring: per-stat stabilization n0 in games, recency bonus 0.5 + 0.5 for the l
 blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed by 1,500 shots,
 games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
-`sync.py` orchestration · `probe.py` · `views/tables.py` · `cli.py`.
+`lineup/` (periods, availability, optimize, report) · `sync.py` orchestration · `probe.py` ·
+`views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
 gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
 
@@ -142,7 +159,8 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
 1. ✅ Fantrax sync, NHL stats, ID mapping, scoring engine, baseline projection, `hockey roster`.
 2. ✅ Valuation v2: in-season blend + last 14/30 days + prior, per-stat regression; MoneyPuck
    xG/TOI/PP share; rest-of-season games; rookie default; `hockey player`, `hockey rank`.
-3. Weekly lineup optimizer (Mon–Sun schedule, goalie starts, injuries, multi-position eligibility).
+3. ✅ Weekly lineup optimizer (`hockey lineup`): period schedule, goalie starts + b2b, availability
+   signals + `--out`, multi-position DP, moves and flags.
 4. Waivers/streaming vs weakest rostered player per position; filter ineligible (undrafted) prospects.
 5. Trade analyzer: value over replacement (10-team slot counts), scarcity, roster fit, keeper and
    draft-pick value.
