@@ -6,17 +6,24 @@ teams: 10
 format: h2h_points
 lineup_lock: weekly            # set before Monday's first NHL game
 
+# Source: Fantrax league settings, verified 2026-09-29 (screenshots). Fantrax only blocks transactions
+# that break the total roster size; too many reserves, or an IR violation after 1 lineup period,
+# makes a roster illegal; minors aren't enforced.
 roster:
   active: {C: 2, LW: 2, RW: 2, D: 4, G: 2}
   reserve: 6
   injured_reserve: 3
-  minors: 5                    # < 165 NHL games played
-  max_players: 27
+  minors: 5                    # career + current regular-season GP <= 165 (skaters and goalies)
+  max_players: 28              # Fantrax's total cap (the rules text says 27; Fantrax is authoritative)
+  ir_counts_toward_max: true
+  minors_count_toward_max: true
+  effective_max: 26            # 12 + 6 + 3 + 5: the slot caps bind before 28. Open spots = this - rostered.
 
 keepers:
   regular: 10
   minors: 5
-  minors_gp_threshold: 165     # keeper clock starts after the player passes this many NHL GP
+  minors_gp_threshold: 165     # career + current regular-season GP <= 165 (Fantrax setting)
+  minors_gp_inclusive: true    # so a player with exactly 165 GP is still a minor; keeper clock starts at 166
   max_times_kept: 3            # regular players, excluding franchise-tagged
   franchise_tags: 4
   clock_resets_on_trade: true

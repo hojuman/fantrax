@@ -44,8 +44,12 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 
 League scoring (Fantrax, verified 2026-09-29), H2H points. Skaters: G 2, A 1.5, +/- 0.25, PPP 0.5,
 SOG 0.1, Hit 0.08, Blk 0.08, PIM 0.1. Goalies: W 2, SHO 2, SV 0.155, GA −1. Always re-read this from
-Fantrax on sync; don't hard-code it. Roster limits: Fantrax says **28 max players**, the league rules
-text says 27. Sync reports the mismatch, and the user decides which is right.
+Fantrax on sync; don't hard-code it. Roster limits (Fantrax settings, verified 2026-09-29; Fantrax is
+authoritative over the rules text's "27"): 28 total, 12 active, 6 reserve, 3 IR, 5 minors. IR and minors
+**count toward the total**, so the slot caps bind first: **effective max 26** (`roster.effective_max`).
+Phase 4: open spots = effective_max − rostered count. Minors eligibility: career + current regular-season
+GP **≤ 165** (skaters and goalies). Fantrax only blocks transactions that break total roster size.
+Sync still compares Fantrax `rosterInfo` with `data/league.yaml` and notes any future drift.
 Sync also stores `rosterPeriods` (weekly locks, Mon ~evening ET, times vary) and `matchups` (the H2H
 schedule) in `meta`, for Phase 3 and Phase 7.
 

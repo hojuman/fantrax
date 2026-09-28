@@ -36,7 +36,7 @@ MINE = "tbb0000000000000"
 def test_full_sync_and_my_roster(conn, settings):
     report = full_sync(conn, settings)
     assert report.problems == []
-    assert any("max players: Fantrax says 28" in n for n in report.notes)
+    assert not any("Roster rules differ" in n for n in report.notes)  # league.yaml matches Fantrax
     rules = load_rules(conn)
     assert rules.source == "fantrax" and rules.weights["goalie"] == {
         "ga": -1.0,
