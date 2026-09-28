@@ -19,11 +19,13 @@ from hockey.sources.fantrax_fxea import (
     FantraxError,
     FantraxShapeError,
     FxeaClient,
+    check_roster_info,
     parse_player_ids,
     parse_pool,
     parse_rosters,
     parse_scoring,
     parse_teams,
+    scoring_consistency,
 )
 from hockey.sources.nhl import NhlClient, SeasonLine, completed_seasons, current_season
 
@@ -118,6 +120,13 @@ def sync_fantrax(conn: sqlite3.Connection, http: HttpClient, settings: Settings,
                 conn.execute("UPDATE fantrax_player SET positions=? WHERE fantrax_id=?", (p["eligible"], fid))
         report.counts["player pool"] = len(pool)
         scoring_raw = parse_scoring(info)
+        for d in scoring_consistency(info):
+            report.problems.append(f"Fantrax's two copies of the scoring weights disagree: {d}")
+        for m in check_roster_info(info, settings.league):
+            report.notes.append(f"Roster rules differ, {m}. Fantrax enforces its own number.")
+        # Weekly lock periods and the H2H schedule, for the lineup optimizer / league intel phases.
+        set_meta(conn, "roster_periods", info.get("rosterPeriods") or [])
+        set_meta(conn, "matchups", info.get("matchups") or [])
         if not scoring_raw:
             report.notes.append(
                 "getLeagueInfo had no recognizable scoring weights; run `hockey probe` to inspect."

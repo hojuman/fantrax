@@ -51,7 +51,7 @@
     "playerId": 8480222,
     "skaterFullName": "Sebastian Aho",
     "positionCode": "D",
-    "teamAbbrevs": "NYI",
+    "teamAbbrevs": "PIT",
     "gamesPlayed": 78,
     "goals": 4,
     "assists": 18,
@@ -91,6 +91,29 @@
     "timeOnIcePerGame": 1100,
     "evGoals": 16,
     "evPoints": 45,
+    "faceoffWinPct": null
+   },
+   {
+    "playerId": 8477969,
+    "skaterFullName": "Marcus Pettersson",
+    "positionCode": "D",
+    "teamAbbrevs": "NYR",
+    "gamesPlayed": 75,
+    "goals": 3,
+    "assists": 20,
+    "points": 23,
+    "plusMinus": 10,
+    "penaltyMinutes": 30,
+    "ppGoals": 0,
+    "ppPoints": 1,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 0,
+    "otGoals": 0,
+    "shots": 70,
+    "timeOnIcePerGame": 1260,
+    "evGoals": 3,
+    "evPoints": 22,
     "faceoffWinPct": null
    },
    {
@@ -331,6 +354,13 @@
     "giveaways": 15
    },
    {
+    "playerId": 8477969,
+    "hits": 80,
+    "blockedShots": 120,
+    "takeaways": 20,
+    "giveaways": 15
+   },
+   {
     "playerId": 8483678,
     "hits": 120,
     "blockedShots": 90,
@@ -414,6 +444,11 @@
     "playerId": 8480012,
     "totalFaceoffWins": 700,
     "totalFaceoffLosses": 650
+   },
+   {
+    "playerId": 8477969,
+    "totalFaceoffWins": 0,
+    "totalFaceoffLosses": 0
    },
    {
     "playerId": 8483678,

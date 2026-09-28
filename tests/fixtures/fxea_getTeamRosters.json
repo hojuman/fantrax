@@ -1,17 +1,11 @@
 {
  "period": 1,
  "rosters": {
-  "t01": {
-   "teamName": "The Blue Blazers",
+  "tbb0000000000000": {
    "rosterItems": [
     {
-     "id": "04aho",
+     "id": "03rmx",
      "position": "C",
-     "status": "ACTIVE"
-    },
-    {
-     "id": "06pet",
-     "position": "D",
      "status": "ACTIVE"
     },
     {
@@ -25,6 +19,11 @@
      "status": "ACTIVE"
     },
     {
+     "id": "060v8",
+     "position": "D",
+     "status": "ACTIVE"
+    },
+    {
      "id": "05qhu",
      "position": "D",
      "status": "ACTIVE"
@@ -35,14 +34,24 @@
      "status": "ACTIVE"
     },
     {
+     "id": "03mil",
+     "position": "C",
+     "status": "RESERVE"
+    },
+    {
+     "id": "03daz",
+     "position": "D",
+     "status": "INJURED_RESERVE"
+    },
+    {
      "id": "07pro",
      "position": "C",
      "status": "MINORS"
     }
-   ]
+   ],
+   "teamName": "The Blue Blazers"
   },
-  "t02": {
-   "teamName": "Ricky Bobby Racing",
+  "team020000000000": {
    "rosterItems": [
     {
      "id": "04abc",
@@ -50,22 +59,22 @@
      "status": "ACTIVE"
     },
     {
-     "id": "05aho",
+     "id": "03el6",
      "position": "D",
      "status": "ACTIVE"
     },
     {
-     "id": "04pet",
+     "id": "048x9",
      "position": "C",
      "status": "ACTIVE"
     }
-   ]
+   ],
+   "teamName": "Team 02"
   },
-  "t03": {
-   "teamName": "Shake and Bake",
+  "team030000000000": {
    "rosterItems": [
     {
-     "id": "03mil",
+     "id": "02ore",
      "position": "C",
      "status": "ACTIVE"
     },
@@ -74,7 +83,36 @@
      "position": "G",
      "status": "RESERVE"
     }
-   ]
+   ],
+   "teamName": "Team 03"
+  },
+  "team040000000000": {
+   "rosterItems": [],
+   "teamName": "Team 04"
+  },
+  "team050000000000": {
+   "rosterItems": [],
+   "teamName": "Team 05"
+  },
+  "team060000000000": {
+   "rosterItems": [],
+   "teamName": "Team 06"
+  },
+  "team070000000000": {
+   "rosterItems": [],
+   "teamName": "Team 07"
+  },
+  "team080000000000": {
+   "rosterItems": [],
+   "teamName": "Team 08"
+  },
+  "team090000000000": {
+   "rosterItems": [],
+   "teamName": "Team 09"
+  },
+  "team100000000000": {
+   "rosterItems": [],
+   "teamName": "Team 10"
   }
  }
 }

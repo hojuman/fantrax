@@ -1,189 +1,579 @@
 {
- "leagueId": "testleague",
- "draftType": "SNAKE",
- "teamInfo": {
-  "t01": {
-   "id": "t01",
-   "name": "The Blue Blazers"
-  },
-  "t02": {
-   "id": "t02",
-   "name": "Ricky Bobby Racing"
-  },
-  "t03": {
-   "id": "t03",
-   "name": "Shake and Bake"
-  }
+ "draftSettings": {
+  "draftType": "snake"
  },
+ "draftType": "snake",
+ "endDate": "2027-04-10",
+ "leagueHistoryId": "history000000000",
+ "leagueName": "Test League",
+ "matchups": [
+  {
+   "matchupList": [
+    {
+     "away": {
+      "id": "tbb0000000000000",
+      "name": "The Blue Blazers",
+      "shortName": "TBB"
+     },
+     "home": {
+      "id": "team100000000000",
+      "name": "Team 10",
+      "shortName": "T10"
+     }
+    },
+    {
+     "away": {
+      "id": "team020000000000",
+      "name": "Team 02",
+      "shortName": "T02"
+     },
+     "home": {
+      "id": "team090000000000",
+      "name": "Team 09",
+      "shortName": "T09"
+     }
+    },
+    {
+     "away": {
+      "id": "team030000000000",
+      "name": "Team 03",
+      "shortName": "T03"
+     },
+     "home": {
+      "id": "team080000000000",
+      "name": "Team 08",
+      "shortName": "T08"
+     }
+    },
+    {
+     "away": {
+      "id": "team040000000000",
+      "name": "Team 04",
+      "shortName": "T04"
+     },
+     "home": {
+      "id": "team070000000000",
+      "name": "Team 07",
+      "shortName": "T07"
+     }
+    },
+    {
+     "away": {
+      "id": "team050000000000",
+      "name": "Team 05",
+      "shortName": "T05"
+     },
+     "home": {
+      "id": "team060000000000",
+      "name": "Team 06",
+      "shortName": "T06"
+     }
+    }
+   ],
+   "period": 1
+  },
+  {
+   "matchupList": [
+    {
+     "away": {
+      "id": "tbb0000000000000",
+      "name": "The Blue Blazers",
+      "shortName": "TBB"
+     },
+     "home": {
+      "id": "team020000000000",
+      "name": "Team 02",
+      "shortName": "T02"
+     }
+    },
+    {
+     "away": {
+      "id": "team030000000000",
+      "name": "Team 03",
+      "shortName": "T03"
+     },
+     "home": {
+      "id": "team100000000000",
+      "name": "Team 10",
+      "shortName": "T10"
+     }
+    },
+    {
+     "away": {
+      "id": "team040000000000",
+      "name": "Team 04",
+      "shortName": "T04"
+     },
+     "home": {
+      "id": "team090000000000",
+      "name": "Team 09",
+      "shortName": "T09"
+     }
+    },
+    {
+     "away": {
+      "id": "team050000000000",
+      "name": "Team 05",
+      "shortName": "T05"
+     },
+     "home": {
+      "id": "team080000000000",
+      "name": "Team 08",
+      "shortName": "T08"
+     }
+    },
+    {
+     "away": {
+      "id": "team060000000000",
+      "name": "Team 06",
+      "shortName": "T06"
+     },
+     "home": {
+      "id": "team070000000000",
+      "name": "Team 07",
+      "shortName": "T07"
+     }
+    }
+   ],
+   "period": 2
+  }
+ ],
  "playerInfo": {
-  "04abc": {
-   "status": "FA",
-   "eligiblePos": "C"
+  "03rmx": {
+   "eligiblePos": "C",
+   "status": "tbb0000000000000"
   },
-  "04aho": {
-   "status": "FA",
-   "eligiblePos": "C,LW"
+  "03el6": {
+   "eligiblePos": "D",
+   "status": "team020000000000"
   },
-  "05aho": {
-   "status": "FA",
-   "eligiblePos": "D"
+  "05lun": {
+   "eligiblePos": "D",
+   "status": "FA"
   },
-  "04pet": {
-   "status": "FA",
-   "eligiblePos": "C"
+  "048x9": {
+   "eligiblePos": "C",
+   "status": "team020000000000"
   },
-  "06pet": {
-   "status": "FA",
-   "eligiblePos": "D"
+  "060v8": {
+   "eligiblePos": "D",
+   "status": "tbb0000000000000"
   },
-  "05stu": {
-   "status": "FA",
-   "eligiblePos": "C,LW"
+  "03daz": {
+   "eligiblePos": "D",
+   "status": "tbb0000000000000"
   },
-  "06sla": {
-   "status": "FA",
-   "eligiblePos": "LW,RW"
+  "05uxb": {
+   "eligiblePos": "C",
+   "status": "FA"
   },
-  "03mar": {
-   "status": "FA",
-   "eligiblePos": "RW"
+  "074qj": {
+   "eligiblePos": "LW",
+   "status": "FA"
   },
-  "03mil": {
-   "status": "FA",
-   "eligiblePos": "C"
+  "04qz4": {
+   "eligiblePos": "RW",
+   "status": "FA"
   },
   "02ore": {
-   "status": "FA",
-   "eligiblePos": "C"
+   "eligiblePos": "C",
+   "status": "team030000000000"
+  },
+  "04abc": {
+   "eligiblePos": "C",
+   "status": "team020000000000"
+  },
+  "05stu": {
+   "eligiblePos": "C",
+   "status": "tbb0000000000000"
+  },
+  "06sla": {
+   "eligiblePos": "LW",
+   "status": "FA"
+  },
+  "03mar": {
+   "eligiblePos": "RW,C",
+   "status": "tbb0000000000000"
+  },
+  "03mil": {
+   "eligiblePos": "C",
+   "status": "tbb0000000000000"
   },
   "05qhu": {
-   "status": "FA",
-   "eligiblePos": "D"
+   "eligiblePos": "D",
+   "status": "tbb0000000000000"
   },
   "05jhu": {
-   "status": "FA",
-   "eligiblePos": "C"
+   "eligiblePos": "C",
+   "status": "FA"
   },
   "04dem": {
-   "status": "FA",
-   "eligiblePos": "G"
+   "eligiblePos": "G",
+   "status": "team030000000000"
   },
   "04sar": {
-   "status": "FA",
-   "eligiblePos": "G"
+   "eligiblePos": "G",
+   "status": "tbb0000000000000"
   },
   "07pro": {
-   "status": "FA",
-   "eligiblePos": "C"
+   "eligiblePos": "C",
+   "status": "tbb0000000000000"
   }
  },
+ "playoffs": {
+  "used": false
+ },
+ "poolSettings": {
+  "duplicatePlayerType": "NONE",
+  "playerSourceType": "ALL_TEAMS"
+ },
+ "rosterInfo": {
+  "maxTotalActivePlayers": 12,
+  "maxTotalPlayers": 28,
+  "maxTotalReservePlayers": 6,
+  "positionConstraints": {
+   "C": {
+    "maxActive": 2
+   },
+   "D": {
+    "maxActive": 4
+   },
+   "G": {
+    "maxActive": 2
+   },
+   "LW": {
+    "maxActive": 2
+   },
+   "RW": {
+    "maxActive": 2
+   }
+  }
+ },
+ "rosterPeriods": [
+  {
+   "endDate": "2026-10-05T18:59:59.0-0400",
+   "number": 1,
+   "startDate": "2026-09-29T17:00:00.0-0400"
+  },
+  {
+   "endDate": "2026-10-12T12:59:59.0-0400",
+   "number": 2,
+   "startDate": "2026-10-05T19:00:00.0-0400"
+  }
+ ],
+ "scoringPeriods": [
+  {
+   "endDate": "2026-10-05T18:59:59.0-0400",
+   "number": 1,
+   "startDate": "2026-09-29T17:00:00.0-0400"
+  },
+  {
+   "endDate": "2026-10-12T12:59:59.0-0400",
+   "number": 2,
+   "startDate": "2026-10-05T19:00:00.0-0400"
+  }
+ ],
  "scoringSystem": {
-  "type": "POINTS",
+  "scoringCategories": {
+   "GOALIE": {
+    "GA": {
+     "Default": "points-1"
+    },
+    "SHO": {
+     "Default": "points2"
+    },
+    "SV": {
+     "Default": "points0.155"
+    },
+    "W": {
+     "Default": "points2"
+    }
+   },
+   "SKATING": {
+    "+/-": {
+     "Default": "points0.25"
+    },
+    "A": {
+     "Default": "points1.5"
+    },
+    "Blk": {
+     "Default": "points0.08"
+    },
+    "G": {
+     "Default": "points2"
+    },
+    "Hit": {
+     "Default": "points0.08"
+    },
+    "PIM": {
+     "Default": "points0.1"
+    },
+    "PPP": {
+     "Default": "points0.5"
+    },
+    "SOG": {
+     "Default": "points0.1"
+    }
+   }
+  },
   "scoringCategorySettings": [
    {
-    "group": {
-     "code": "SKATING",
-     "name": "Skating"
-    },
     "configs": [
      {
-      "scoringCategory": {
-       "code": "G",
-       "shortName": "G",
-       "name": "Goals"
+      "cumulative": true,
+      "points": 1.5,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 3
+      "scoringCategory": {
+       "code": "INDIVIDUAL_ASSISTS",
+       "id": "2090",
+       "name": "Assists",
+       "shortName": "A"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "A",
-       "shortName": "A",
-       "name": "Assists"
+      "cumulative": true,
+      "points": 0.08,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 2
+      "scoringCategory": {
+       "code": "INDIVIDUAL_BLOCKS",
+       "id": "2092",
+       "name": "Blocks",
+       "shortName": "Blk"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "PM",
-       "shortName": "+/-",
-       "name": "Plus/Minus"
+      "cumulative": true,
+      "points": 2.0,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 0.5
+      "scoringCategory": {
+       "code": "INDIVIDUAL_GOALS",
+       "id": "2130",
+       "name": "Goals",
+       "shortName": "G"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "PPP",
-       "shortName": "PPP",
-       "name": "Power Play Points"
+      "cumulative": true,
+      "points": 0.08,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 1
+      "scoringCategory": {
+       "code": "INDIVIDUAL_HITS",
+       "id": "2147",
+       "name": "Hits",
+       "shortName": "Hit"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "SOG",
-       "shortName": "SOG",
-       "name": "Shots on Goal"
+      "cumulative": true,
+      "points": 0.1,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 0.4
+      "scoringCategory": {
+       "code": "INDIVIDUAL_PENALTY_MINUTES",
+       "id": "2170",
+       "name": "Penalty Minutes",
+       "shortName": "PIM"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "HIT",
-       "shortName": "Hit",
-       "name": "Hits"
+      "cumulative": true,
+      "points": 0.25,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 0.25
+      "scoringCategory": {
+       "code": "INDIVIDUAL_PLUS_MINUS",
+       "id": "2181",
+       "name": "Plus/Minus",
+       "shortName": "+/-"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "BLK",
-       "shortName": "BkS",
-       "name": "Blocked Shots"
+      "cumulative": true,
+      "points": 0.1,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 0.5
+      "scoringCategory": {
+       "code": "INDIVIDUAL_SHOTS_ON_GOAL",
+       "id": "2270",
+       "name": "Shots on Goal",
+       "shortName": "SOG"
+      }
+     },
+     {
+      "cumulative": true,
+      "points": 0.5,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
+      },
+      "scoringCategory": {
+       "code": "INDIVIDUAL_POWER_PLAY_POINTS",
+       "id": "2327",
+       "name": "Power Play Points",
+       "shortName": "PPP"
+      }
      }
-    ]
+    ],
+    "group": {
+     "code": "HOCKEY_SKATING",
+     "id": "2010",
+     "name": "Skaters",
+     "shortName": "Skt"
+    }
    },
    {
-    "group": {
-     "code": "GOALIE",
-     "name": "Goaltending"
-    },
     "configs": [
      {
-      "scoringCategory": {
-       "code": "W",
-       "shortName": "W",
-       "name": "Wins"
+      "cumulative": true,
+      "points": -1.0,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 4
+      "scoringCategory": {
+       "code": "INDIVIDUAL_GOALS_AGAINST",
+       "id": "2140",
+       "name": "Goals Against",
+       "shortName": "GA"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "GA",
-       "shortName": "GA",
-       "name": "Goals Against"
+      "cumulative": true,
+      "points": 0.155,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": -2
+      "scoringCategory": {
+       "code": "INDIVIDUAL_SAVES",
+       "id": "2230",
+       "name": "Saves",
+       "shortName": "SV"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "SV",
-       "shortName": "SV",
-       "name": "Saves"
+      "cumulative": true,
+      "points": 2.0,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 0.2
+      "scoringCategory": {
+       "code": "INDIVIDUAL_SHUTOUTS",
+       "id": "2290",
+       "name": "Shutouts",
+       "shortName": "SHO"
+      }
      },
      {
-      "scoringCategory": {
-       "code": "SO",
-       "shortName": "SO",
-       "name": "Shutouts"
+      "cumulative": true,
+      "points": 2.0,
+      "position": {
+       "code": "DEFAULT",
+       "id": "-1",
+       "name": "Default",
+       "shortName": "Default"
       },
-      "points": 3
+      "scoringCategory": {
+       "code": "INDIVIDUAL_GOALIE_WINS",
+       "id": "231b",
+       "name": "Wins (Goalies only)",
+       "shortName": "W"
+      }
      }
-    ]
+    ],
+    "group": {
+     "code": "HOCKEY_GOALIE",
+     "id": "2020",
+     "name": "Goalies",
+     "shortName": "Goal"
+    }
    }
-  ]
+  ],
+  "type": "HEAD_TO_HEAD_POINTS_BASED"
+ },
+ "seasonYear": 2026,
+ "startDate": "2026-09-29",
+ "teamInfo": {
+  "tbb0000000000000": {
+   "id": "tbb0000000000000",
+   "name": "The Blue Blazers"
+  },
+  "team020000000000": {
+   "id": "team020000000000",
+   "name": "Team 02"
+  },
+  "team030000000000": {
+   "id": "team030000000000",
+   "name": "Team 03"
+  },
+  "team040000000000": {
+   "id": "team040000000000",
+   "name": "Team 04"
+  },
+  "team050000000000": {
+   "id": "team050000000000",
+   "name": "Team 05"
+  },
+  "team060000000000": {
+   "id": "team060000000000",
+   "name": "Team 06"
+  },
+  "team070000000000": {
+   "id": "team070000000000",
+   "name": "Team 07"
+  },
+  "team080000000000": {
+   "id": "team080000000000",
+   "name": "Team 08"
+  },
+  "team090000000000": {
+   "id": "team090000000000",
+   "name": "Team 09"
+  },
+  "team100000000000": {
+   "id": "team100000000000",
+   "name": "Team 10"
+  }
  }
 }

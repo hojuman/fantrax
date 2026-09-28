@@ -158,7 +158,10 @@ def parse_player_ids(data: Any) -> list[FantraxPlayer]:
 
 
 def parse_teams(info: dict) -> dict[str, dict[str, str]]:
-    """getLeagueInfo -> {team_id: {name, short_name}}."""
+    """getLeagueInfo -> {team_id: {name, short_name}}.
+
+    teamInfo has only id + name (verified live); short names come from the matchups list.
+    """
     raw = info.get("teamInfo") or info.get("teams") or {}
     if isinstance(raw, list):
         raw = {str(t.get("id")): t for t in raw if isinstance(t, dict) and t.get("id")}
@@ -169,6 +172,13 @@ def parse_teams(info: dict) -> dict[str, dict[str, str]]:
                 "name": str(t.get("name") or t.get("teamName") or tid),
                 "short_name": str(t.get("shortName") or t.get("abbrev") or ""),
             }
+    for period in info.get("matchups") or []:
+        for m in (period or {}).get("matchupList") or []:
+            for side in ("home", "away"):
+                t = (m or {}).get(side) or {}
+                tid = str(t.get("id") or "")
+                if tid in teams and not teams[tid]["short_name"] and t.get("shortName"):
+                    teams[tid]["short_name"] = str(t["shortName"])
     return teams
 
 
@@ -222,12 +232,97 @@ def _group_hint(key: str | None, d: Any) -> str | None:
     return None
 
 
-def parse_scoring(info: dict) -> dict[str, dict[str, float]] | None:
-    """Find per-stat point weights inside getLeagueInfo's scoring section.
+def _config_group(group: str, position_code: str | None) -> str:
+    """Scoring group for a config: position-specific configs become F / D overrides."""
+    pos = (position_code or "DEFAULT").upper()
+    if pos in ("DEFAULT", "-1", ""):
+        return group
+    if pos == "G":
+        return "goalie"
+    if pos == "D":
+        return "D"
+    return "F"  # C / LW / RW / F: forward-specific weights
 
-    Returns {"skater": {code: pts}, "goalie": {code: pts}} or None if nothing recognizable was
-    found (the caller then falls back to data/league.yaml).
+
+def _group_from_label(label: Any) -> str | None:
+    if isinstance(label, dict):
+        label = f"{label.get('code', '')} {label.get('name', '')}"
+    return _group_hint(str(label or ""), None)
+
+
+def _scoring_from_settings(ss: dict) -> dict[str, dict[str, float]]:
+    """scoringSystem.scoringCategorySettings: [{group: {code: HOCKEY_SKATING, ...}, configs: [
+    {points, position: {code: DEFAULT}, scoringCategory: {shortName: "G", ...}}]}] (verified live)."""
+    found: dict[str, dict[str, float]] = {}
+    for grp in ss.get("scoringCategorySettings") or []:
+        if not isinstance(grp, dict):
+            continue
+        group = _group_from_label(grp.get("group")) or "skater"
+        for cfg in grp.get("configs") or []:
+            cat = cfg.get("scoringCategory") or {}
+            code = cat.get("shortName") or cat.get("code")
+            pts = cfg.get("points")
+            if not code or not isinstance(pts, (int, float)):
+                continue
+            target = _config_group(group, (cfg.get("position") or {}).get("code"))
+            found.setdefault(target, {})[code] = float(pts)
+    return found
+
+
+_POINTS_STR = re.compile(r"^points(-?\d+(?:\.\d+)?)$")
+
+
+def _scoring_from_categories(ss: dict) -> dict[str, dict[str, float]]:
+    """scoringSystem.scoringCategories: {"SKATING": {"G": {"Default": "points2"}}, "GOALIE": ...}."""
+    found: dict[str, dict[str, float]] = {}
+    for label, codes in (ss.get("scoringCategories") or {}).items():
+        group = _group_from_label(label) or "skater"
+        if not isinstance(codes, dict):
+            continue
+        for code, by_pos in codes.items():
+            if not isinstance(by_pos, dict):
+                continue
+            for pos, val in by_pos.items():
+                m = _POINTS_STR.match(str(val).strip())
+                if m:
+                    target = _config_group(group, "DEFAULT" if pos.lower() == "default" else pos)
+                    found.setdefault(target, {})[code] = float(m.group(1))
+    return found
+
+
+def scoring_consistency(info: dict) -> list[str]:
+    """Differences between Fantrax's two copies of the scoring weights (should be none)."""
+    ss = info.get("scoringSystem")
+    if not isinstance(ss, dict):
+        return []
+    a, b = _scoring_from_settings(ss), _scoring_from_categories(ss)
+    if not a or not b:
+        return []
+    diffs = []
+    for group in sorted(set(a) | set(b)):
+        for code in sorted(set(a.get(group, {})) | set(b.get(group, {}))):
+            x, y = a.get(group, {}).get(code), b.get(group, {}).get(code)
+            if x is None or y is None or abs(x - y) > 1e-9:
+                diffs.append(f"{group} {code}: settings={x} categories={y}")
+    return diffs
+
+
+def parse_scoring(info: dict) -> dict[str, dict[str, float]] | None:
+    """Per-stat point weights from getLeagueInfo.
+
+    Returns {"skater": {code: pts}, "goalie": {code: pts}, optionally "F"/"D": {...}} or None
+    (the caller then falls back to data/league.yaml). Tries the verified structure first, then
+    the string form, then a heuristic walk in case Fantrax reshapes the response.
     """
+    ss = info.get("scoringSystem")
+    if isinstance(ss, dict):
+        found = _scoring_from_settings(ss) or _scoring_from_categories(ss)
+        if found:
+            return found
+    return _scoring_heuristic(info)
+
+
+def _scoring_heuristic(info: dict) -> dict[str, dict[str, float]] | None:
     roots = [(k, v) for k, v in info.items() if "scor" in k.lower()]
     found: dict[str, dict[str, float]] = {}
 
@@ -248,6 +343,25 @@ def parse_scoring(info: dict) -> dict[str, dict[str, float]] | None:
     for k, v in roots:
         walk(k, v, None)
     return found or None
+
+
+def check_roster_info(info: dict, league: dict) -> list[str]:
+    """Compare Fantrax rosterInfo with data/league.yaml; return human-readable mismatches."""
+    ri = info.get("rosterInfo") or {}
+    roster = (league or {}).get("roster") or {}
+    active = roster.get("active") or {}
+    out = []
+
+    def cmp(label: str, fantrax: Any, ours: Any) -> None:
+        if fantrax is not None and ours is not None and fantrax != ours:
+            out.append(f"{label}: Fantrax says {fantrax}, data/league.yaml says {ours}")
+
+    cmp("max players", ri.get("maxTotalPlayers"), roster.get("max_players"))
+    cmp("active players", ri.get("maxTotalActivePlayers"), sum(active.values()) if active else None)
+    cmp("reserve players", ri.get("maxTotalReservePlayers"), roster.get("reserve"))
+    for pos, c in (ri.get("positionConstraints") or {}).items():
+        cmp(f"active {pos}", (c or {}).get("maxActive"), active.get(pos))
+    return out
 
 
 def parse_rosters(data: Any) -> list[RosterRow]:

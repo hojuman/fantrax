@@ -48,7 +48,7 @@
   ],
   "goalies": []
  },
- "NYI": {
+ "PIT": {
   "forwards": [],
   "defensemen": [
    {
@@ -61,6 +61,37 @@
     },
     "positionCode": "D",
     "birthDate": "1996-02-17",
+    "sweaterNumber": 1
+   }
+  ],
+  "goalies": []
+ },
+ "NYR": {
+  "forwards": [
+   {
+    "id": 8476468,
+    "firstName": {
+     "default": "J.T."
+    },
+    "lastName": {
+     "default": "Miller"
+    },
+    "positionCode": "C",
+    "birthDate": "1993-03-14",
+    "sweaterNumber": 1
+   }
+  ],
+  "defensemen": [
+   {
+    "id": 8477969,
+    "firstName": {
+     "default": "Marcus"
+    },
+    "lastName": {
+     "default": "Pettersson"
+    },
+    "positionCode": "D",
+    "birthDate": "1996-05-08",
     "sweaterNumber": 1
    }
   ],
@@ -170,24 +201,6 @@
     },
     "positionCode": "R",
     "birthDate": "1997-05-05",
-    "sweaterNumber": 1
-   }
-  ],
-  "defensemen": [],
-  "goalies": []
- },
- "NYR": {
-  "forwards": [
-   {
-    "id": 8476468,
-    "firstName": {
-     "default": "J.T."
-    },
-    "lastName": {
-     "default": "Miller"
-    },
-    "positionCode": "C",
-    "birthDate": "1993-03-14",
     "sweaterNumber": 1
    }
   ],

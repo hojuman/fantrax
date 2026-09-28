@@ -39,6 +39,13 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 | NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this) | none | 24h |
 | MoneyPuck (Phase 2) | `moneypuck.com/moneypuck/playerData/seasonSummary/{yr}/regular/{skaters,goalies}.csv`; `playerId` = NHL id | none | 24h |
 
+League scoring (Fantrax, verified 2026-09-29), H2H points. Skaters: G 2, A 1.5, +/- 0.25, PPP 0.5,
+SOG 0.1, Hit 0.08, Blk 0.08, PIM 0.1. Goalies: W 2, SHO 2, SV 0.155, GA −1. Always re-read this from
+Fantrax on sync; don't hard-code it. Roster limits: Fantrax says **28 max players**, the league rules
+text says 27. Sync reports the mismatch, and the user decides which is right.
+Sync also stores `rosterPeriods` (weekly locks, Mon ~evening ET, times vary) and `matchups` (the H2H
+schedule) in `meta`, for Phase 3 and Phase 7.
+
 `getPlayerIds` (verified 2026-09-29, 9,045 NHL players) carries **no NHL id**. Its extra fields are
 `rotowireId, sportRadarId, statsIncId, shortName, teamName, teamShortName`. The team is read from
 `team`, then `teamShortName`, then `teamName` (full names are mapped in `sources/teams.py`).
@@ -57,12 +64,21 @@ approved it for Phase 2: **every output that uses MoneyPuck data must show a Mon
    `hockey import-csv`, scoring via `data/league.yaml`.
 2. **Fantrax errors arrive as HTTP 200** with an error object. `fantrax_fxea.body_error()` checks
    every body; error bodies are never cached.
-3. **Response shapes are best-known guesses** until `hockey probe` runs against the real league.
-   Parsers raise `FantraxShapeError` rather than guessing. Test fixtures in `tests/fixtures/` are
-   hand-built. After a successful probe, diff `var/probe/*.json` against them and update both the
-   parsers and fixtures deliberately. **The user asked that fixtures be anonymized further:**
-   placeholder team names (except "The Blue Blazers"), no owner or manager fields, and only the
-   players the tests need. Never copy raw probe samples into the repo.
+3. **Fantrax response shapes** were verified live on 2026-09-29, and the parsers target them first:
+   - getLeagueInfo scoring lives in `scoringSystem.scoringCategorySettings[].configs[]`, with
+     `points`, `position.code` (DEFAULT, or a position for per-position weights → F/D overrides),
+     `scoringCategory.shortName`, and a group of `HOCKEY_SKATING`/`HOCKEY_GOALIE`.
+   - The same weights appear again as strings in `scoringSystem.scoringCategories`
+     (`{"Default": "points0.155"}`). That copy is the fallback, and sync flags any disagreement.
+   - `teamInfo` has only id + name; team short names come from `matchups`.
+   - getTeamRosters items are `{id, position, status}`, with statuses ACTIVE / RESERVE /
+     INJURED_RESERVE / MINORS.
+   - getPlayerIds entries are `{fantraxId, name "Last, First", position, team (NHL codes, "(N/A)"),
+     rotowireId?, statsIncId?, sportRadarId?}`.
+   If Fantrax reshapes a response, the heuristic fallback plus `FantraxShapeError` take over.
+   Fixtures come from `tests/fixtures/generate.py`: real structure, **anonymized at the user's
+   request** (placeholder teams except "The Blue Blazers", no owner/manager/handle fields, only the
+   players the tests need). Never copy raw `var/probe/` output into the repo.
 4. **Scoring code mapping** (`scoring/rules.py`): unknown Fantrax stat codes raise; rate stats (GAA,
    SV%) are refused, not guessed. Escape hatches: `scoring.code_aliases` / `ignore_codes` in
    `data/league.yaml`. Verify with `hockey validate-scoring` on a Fantrax stats CSV export.
@@ -84,7 +100,9 @@ unique; flagged until confirmed) → unmatched (`id_unmatched`, with reason + pl
 Only rostered/pool players are mapped when rosters are known. Two Fantrax ids claiming one NHL id
 demotes the weaker match to unmatched. Traps covered by tests: two Sebastian Ahos (CAR F / NYI D),
 two Elias Petterssons (both VAN, F vs D), accents, J.T./JT, Mitch/Mitchell, Egor/Yegor, position
-changes, prospects with no NHL games (expected unmatched).
+changes, prospects with no NHL games (expected unmatched). Also from the real feed: a team-less
+"OReilly, Ryan" namesake that must lose to the real one (conflict demotion), duplicate Fantrax names
+with no NHL record (two Hugo Petterssons), and an Aho listed with his new team after a trade.
 **Fixing a miss:** `hockey ids --unmatched`, add `fantrax_id,nhl_id,note` to `data/id_overrides.csv`
 (NHL id is in the nhl.com player URL), then `hockey sync --skip-nhl`.
 

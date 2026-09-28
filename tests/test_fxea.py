@@ -26,13 +26,21 @@ def test_client_raises_on_200_error_body():
 
 def test_parse_player_ids():
     players = {p.fantrax_id: p for p in fx.parse_player_ids(load("fxea_getPlayerIds.json"))}
-    aho = players["04aho"]
+    aho = players["03rmx"]
     assert aho.name == "Sebastian Aho" and aho.nhl_team == "CAR" and aho.pos_group == "F"
-    assert players["05aho"].pos_group == "D"
-    assert players["06sla"].nhl_team == "MTL"  # Fantrax "MON"
-    assert players["05jhu"].nhl_team == "NJD"  # Fantrax "NJ"
-    assert players["07pro"].nhl_team is None  # "(N/A)"
+    assert players["03el6"].pos_group == "D" and players["03el6"].nhl_team == "PIT"
+    assert players["04qz4"].name == "Ryan OReilly" and players["04qz4"].nhl_team is None  # "(N/A)"
     assert players["04dem"].pos_group == "G"
+    assert players["03rmx"].extra == {"rotowireId": 4900, "statsIncId": 6777}
+
+
+def test_parse_player_ids_fantasy_team_codes():
+    data = {
+        "x": {"fantraxId": "x", "name": "Slafkovsky, Juraj", "team": "MON", "position": "LW"},
+        "y": {"fantraxId": "y", "name": "Hughes, Jack", "team": "NJ", "position": "C"},
+    }
+    p = {x.fantrax_id: x for x in fx.parse_player_ids(data)}
+    assert p["x"].nhl_team == "MTL" and p["y"].nhl_team == "NJD"
 
 
 def test_parse_player_ids_list_shape():
@@ -48,11 +56,51 @@ def test_parse_player_ids_garbage_raises():
 def test_parse_league_info():
     info = load("fxea_getLeagueInfo.json")
     teams = fx.parse_teams(info)
-    assert teams["t01"]["name"] == "The Blue Blazers" and len(teams) == 3
+    assert len(teams) == 10
+    assert teams["tbb0000000000000"] == {"name": "The Blue Blazers", "short_name": "TBB"}  # from matchups
     scoring = fx.parse_scoring(info)
-    assert scoring["skater"]["G"] == 3 and scoring["skater"]["BkS"] == 0.5
-    assert scoring["goalie"] == {"W": 4, "GA": -2, "SV": 0.2, "SO": 3}
-    assert "G" not in scoring.get("goalie", {})  # "Goals" category must not be read as a goalie group
+    assert scoring["skater"] == {
+        "A": 1.5,
+        "Blk": 0.08,
+        "G": 2.0,
+        "Hit": 0.08,
+        "PIM": 0.1,
+        "+/-": 0.25,
+        "SOG": 0.1,
+        "PPP": 0.5,
+    }
+    assert scoring["goalie"] == {"GA": -1.0, "SV": 0.155, "SHO": 2.0, "W": 2.0}
+    assert fx.scoring_consistency(info) == []
+
+
+def test_scoring_categories_string_form_is_a_fallback():
+    info = load("fxea_getLeagueInfo.json")
+    del info["scoringSystem"]["scoringCategorySettings"]
+    scoring = fx.parse_scoring(info)
+    assert scoring["goalie"]["SV"] == 0.155 and scoring["skater"]["+/-"] == 0.25
+
+
+def test_scoring_copies_disagreeing_is_reported():
+    info = load("fxea_getLeagueInfo.json")
+    info["scoringSystem"]["scoringCategories"]["GOALIE"]["SV"]["Default"] = "points0.2"
+    assert fx.scoring_consistency(info) == ["goalie SV: settings=0.155 categories=0.2"]
+
+
+def test_position_specific_scoring_becomes_override():
+    info = load("fxea_getLeagueInfo.json")
+    skaters = info["scoringSystem"]["scoringCategorySettings"][0]["configs"]
+    skaters.append({"points": 3.0, "position": {"code": "D"}, "scoringCategory": {"shortName": "G"}})
+    assert fx.parse_scoring(info)["D"] == {"G": 3.0}
+
+
+def test_roster_info_mismatch_reported():
+    info = load("fxea_getLeagueInfo.json")
+    league = {
+        "roster": {"active": {"C": 2, "LW": 2, "RW": 2, "D": 4, "G": 2}, "reserve": 6, "max_players": 27}
+    }
+    assert fx.check_roster_info(info, league) == ["max players: Fantrax says 28, data/league.yaml says 27"]
+    league["roster"]["max_players"] = 28
+    assert fx.check_roster_info(info, league) == []
 
 
 def test_parse_scoring_absent():
@@ -66,9 +114,9 @@ def test_parse_scoring_keyed_by_code():
 
 def test_parse_rosters():
     rows = fx.parse_rosters(load("fxea_getTeamRosters.json"))
-    mine = [r for r in rows if r.team_id == "t01"]
-    assert len(mine) == 7 and mine[0].team_name == "The Blue Blazers"
-    assert {r.status for r in mine} == {"ACTIVE", "MINORS"}
+    mine = [r for r in rows if r.team_id == "tbb0000000000000"]
+    assert len(mine) == 9 and mine[0].team_name == "The Blue Blazers"
+    assert {r.status for r in mine} == {"ACTIVE", "RESERVE", "INJURED_RESERVE", "MINORS"}
 
 
 def test_parse_rosters_bad_shape():

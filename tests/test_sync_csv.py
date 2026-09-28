@@ -20,33 +20,53 @@ def full_sync(conn, settings, http=None):
     return report
 
 
+MINE = "tbb0000000000000"
+
+
 def test_full_sync_and_my_roster(conn, settings):
     report = full_sync(conn, settings)
     assert report.problems == []
+    assert any("max players: Fantrax says 28" in n for n in report.notes)
     rules = load_rules(conn)
-    assert rules.source == "fantrax" and rules.weights["goalie"]["sv"] == 0.2
+    assert rules.source == "fantrax" and rules.weights["goalie"] == {
+        "ga": -1.0,
+        "sv": 0.155,
+        "so": 2.0,
+        "w": 2.0,
+    }
 
     team = find_my_team(conn, settings)
-    assert team["team_id"] == "t01"
-    rows = {r.fantrax_id: r for r in Valuer(conn, rules, settings.league).team_roster("t01")}
-    assert len(rows) == 7
-    assert rows["04aho"].nhl_id == 8478427  # the Carolina Aho, not the Islander
-    assert rows["06pet"].nhl_id == 8483678  # the defenceman Pettersson
+    assert team["team_id"] == MINE and team["short_name"] == "TBB"
+    rows = {r.fantrax_id: r for r in Valuer(conn, rules, settings.league).team_roster(MINE)}
+    assert len(rows) == 9
+    assert rows["03rmx"].nhl_id == 8478427  # the Carolina Aho, not the one now in Pittsburgh
+    assert rows["060v8"].nhl_id == 8483678  # the defenceman Pettersson
+    assert rows["03daz"].nhl_id == 8477969  # Marcus, not either Elias
     assert rows["03mar"].match_method == "alias"  # "Mitchell" vs "Mitch"
     assert rows["07pro"].nhl_id is None  # prospect: logged, no projection
     saros = rows["04sar"].projection
     assert saros and saros.pos_group == "G" and saros.proj_gp == 58
-    assert rows["05qhu"].projection.fp_per_gp > rows["06pet"].projection.fp_per_gp
+    assert rows["05qhu"].projection.fp_per_gp > rows["060v8"].projection.fp_per_gp
 
-    unmatched = conn.execute("SELECT fantrax_id, relevant FROM id_unmatched").fetchall()
-    assert [tuple(r) for r in unmatched] == [("07pro", 1)]
+    mapped = dict(conn.execute("SELECT fantrax_id, nhl_id FROM player_map").fetchall())
+    assert mapped["03el6"] == 8480222 and mapped["02ore"] == 8475158
+    unmatched = dict(conn.execute("SELECT fantrax_id, reason FROM id_unmatched").fetchall())
+    # The team-less "OReilly, Ryan" loses the conflict to the real one; the two Hugo Petterssons,
+    # Karri Aho and the prospect have no NHL record at all.
+    assert set(unmatched) == {"04qz4", "05uxb", "074qj", "05lun", "07pro"}
+    assert unmatched["04qz4"].startswith("conflict")
+    assert (
+        conn.execute("SELECT COUNT(*) FROM meta WHERE key IN ('roster_periods', 'matchups')").fetchone()[0]
+        == 2
+    )
 
 
 def test_second_run_is_sticky(conn, settings):
     full_sync(conn, settings)
     full_sync(conn, settings)
     methods = dict(conn.execute("SELECT fantrax_id, method FROM player_map").fetchall())
-    assert methods["04aho"] == "sticky" and methods["03mar"] == "sticky"
+    assert methods["03rmx"] == "sticky" and methods["03mar"] == "sticky"
+    assert "04qz4" not in methods  # the namesake still doesn't sneak in
 
 
 def test_private_league_falls_back(conn, settings):
@@ -78,9 +98,9 @@ def test_no_scoring_anywhere_is_a_problem(conn, settings):
 
 def test_csv_reader():
     rows = {r.fantrax_id: r for r in read_players_csv(FIXTURES / "fantrax_players.csv")}
-    assert rows["04abc"].name == "Connor McDavid" and rows["04abc"].fpts == 532.0
+    assert rows["04abc"].name == "Connor McDavid" and rows["04abc"].fpts == 299.1
     assert rows["04abc"].stats["SOG"] == 320 and "FP/G" not in rows["04abc"].stats
-    assert rows["05jhu"].nhl_team == "NJD"
+    assert rows["05jhu"].nhl_team == "NJD" and rows["03rmx"].status == "TBB"
     assert is_rostered_status("TBB") and not is_rostered_status("FA") and not is_rostered_status("W (Tue)")
 
 

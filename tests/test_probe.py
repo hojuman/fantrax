@@ -51,7 +51,7 @@ def test_probe_end_to_end_offline(tmp_path):
     assert all(r.ok for r in results.values()), [r for r in results.values() if not r.ok]
     assert "all codes mapped ✓" in results["fxea getLeagueInfo"].detail
     assert "status: ACTIVE×" in results["fxea getTeamRosters"].detail
-    assert "with an NHL team: 14" in results["fxea getPlayerIds"].detail
+    assert "with an NHL team: 15" in results["fxea getPlayerIds"].detail
     assert "NHL roster/VAN/20262027" in results
     assert "non-commercial" in results["MoneyPuck data.htm (terms)"].detail
     assert (tmp_path / "fxea_getLeagueInfo.json").exists()

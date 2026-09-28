@@ -1,1 +1,42 @@
-[{"teamId": "t01", "rank": 1}, {"teamId": "t02", "rank": 2}, {"teamId": "t03", "rank": 3}]
+[
+ {
+  "teamId": "tbb0000000000000",
+  "rank": 1
+ },
+ {
+  "teamId": "team020000000000",
+  "rank": 2
+ },
+ {
+  "teamId": "team030000000000",
+  "rank": 3
+ },
+ {
+  "teamId": "team040000000000",
+  "rank": 4
+ },
+ {
+  "teamId": "team050000000000",
+  "rank": 5
+ },
+ {
+  "teamId": "team060000000000",
+  "rank": 6
+ },
+ {
+  "teamId": "team070000000000",
+  "rank": 7
+ },
+ {
+  "teamId": "team080000000000",
+  "rank": 8
+ },
+ {
+  "teamId": "team090000000000",
+  "rank": 9
+ },
+ {
+  "teamId": "team100000000000",
+  "rank": 10
+ }
+]
