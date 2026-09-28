@@ -4,18 +4,28 @@ from typer.testing import CliRunner
 
 from hockey.scoring_check import check_csv
 from hockey.sources.fantrax_csv import is_rostered_status, read_players_csv
-from hockey.sync import SyncReport, find_my_team, import_csv, load_rules, run_idmap, sync_fantrax, sync_nhl
+from hockey.sync import (
+    SyncReport,
+    find_my_team,
+    import_csv,
+    load_rules,
+    run_idmap,
+    sync_fantrax,
+    sync_moneypuck,
+    sync_nhl,
+)
 from hockey.valuation import Valuer
 from tests.conftest import FIXTURES, FakeHttp, load
 
 TODAY = __import__("datetime").date(2026, 9, 28)
 
 
-def full_sync(conn, settings, http=None):
+def full_sync(conn, settings, http=None, today=TODAY):
     http = http or FakeHttp()
     report = SyncReport()
     sync_fantrax(conn, http, settings, report)
-    sync_nhl(conn, http, TODAY, report)
+    sync_nhl(conn, http, today, report)
+    sync_moneypuck(conn, http, today, report)
     run_idmap(conn, report)
     return report
 
@@ -45,7 +55,7 @@ def test_full_sync_and_my_roster(conn, settings):
     assert rows["03mar"].match_method == "alias"  # "Mitchell" vs "Mitch"
     assert rows["07pro"].nhl_id is None  # prospect: logged, no projection
     saros = rows["04sar"].projection
-    assert saros and saros.pos_group == "G" and saros.proj_gp == 58
+    assert saros and saros.pos_group == "G" and saros.ros_gp == 58 and saros.method == "prior only"
     assert rows["05qhu"].projection.fp_per_gp > rows["060v8"].projection.fp_per_gp
 
     mapped = dict(conn.execute("SELECT fantrax_id, nhl_id FROM player_map").fetchall())
@@ -126,7 +136,7 @@ def test_cli_roster_smoke(tmp_path, monkeypatch, settings):
     result = CliRunner().invoke(cli.app, ["roster"])
     assert result.exit_code == 0, result.output
     assert "The Blue Blazers" in result.output and "Sebastian Aho" in result.output
-    assert "Unmatched (no projection): Future Prospect" in result.output
+    assert "No NHL record (rookie estimate, 0 games projected): Future Prospect" in result.output
     ids = CliRunner().invoke(cli.app, ["ids", "--unmatched"])
     assert "Future Prospect" in ids.output
 

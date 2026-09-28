@@ -78,3 +78,34 @@ CREATE TABLE IF NOT EXISTS id_unmatched (
     relevant    INTEGER NOT NULL,  -- 1 if rostered in the league or in the FA pool
     updated_at  REAL NOT NULL
 );
+
+-- Phase 2 ------------------------------------------------------------------------------------
+
+-- Recent-form windows (current season, date-bounded aggregates), replaced on every sync.
+CREATE TABLE IF NOT EXISTS nhl_stat_window (
+    nhl_id      INTEGER NOT NULL,
+    window      TEXT NOT NULL,     -- last14 / last30
+    end_date    TEXT NOT NULL,
+    pos_group   TEXT NOT NULL,
+    gp          INTEGER NOT NULL,
+    stats       TEXT NOT NULL,     -- JSON, canonical keys
+    PRIMARY KEY (nhl_id, window)
+);
+
+-- MoneyPuck season summaries (data: MoneyPuck.com; credit it wherever it's shown).
+CREATE TABLE IF NOT EXISTS mp_season (
+    nhl_id      INTEGER NOT NULL,
+    season      INTEGER NOT NULL,  -- e.g. 20252026
+    pos_group   TEXT NOT NULL,
+    gp          INTEGER NOT NULL,
+    data        TEXT NOT NULL,     -- JSON: toi_min, pp_toi_min, ixg, g, sog (skaters) / xga, ga, sa (goalies)
+    PRIMARY KEY (nhl_id, season)
+);
+
+-- NHL team games played this season (for rest-of-season games remaining).
+CREATE TABLE IF NOT EXISTS nhl_team_games (
+    team        TEXT PRIMARY KEY,
+    season      INTEGER NOT NULL,
+    gp          INTEGER NOT NULL,
+    as_of       TEXT NOT NULL
+);

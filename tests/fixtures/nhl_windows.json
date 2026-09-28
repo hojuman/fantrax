@@ -1,0 +1,217 @@
+{
+ "last30": {
+  "skater/summary": [
+   {
+    "playerId": 8478402,
+    "skaterFullName": "Connor McDavid",
+    "positionCode": "C",
+    "teamAbbrevs": "EDM",
+    "gamesPlayed": 10,
+    "goals": 6,
+    "assists": 12,
+    "points": 18,
+    "plusMinus": 3,
+    "penaltyMinutes": 2,
+    "ppGoals": 2,
+    "ppPoints": 6,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 1,
+    "otGoals": 0,
+    "shots": 40,
+    "timeOnIcePerGame": 1330,
+    "evGoals": 4,
+    "evPoints": 12,
+    "faceoffWinPct": null
+   },
+   {
+    "playerId": 8478427,
+    "skaterFullName": "Sebastian Aho",
+    "positionCode": "C",
+    "teamAbbrevs": "CAR",
+    "gamesPlayed": 10,
+    "goals": 10,
+    "assists": 5,
+    "points": 15,
+    "plusMinus": 5,
+    "penaltyMinutes": 2,
+    "ppGoals": 4,
+    "ppPoints": 6,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 2,
+    "otGoals": 0,
+    "shots": 31,
+    "timeOnIcePerGame": 1300,
+    "evGoals": 6,
+    "evPoints": 9,
+    "faceoffWinPct": null
+   },
+   {
+    "playerId": 8485555,
+    "skaterFullName": "Rookie Newby",
+    "positionCode": "C",
+    "teamAbbrevs": "CAR",
+    "gamesPlayed": 8,
+    "goals": 3,
+    "assists": 4,
+    "points": 7,
+    "plusMinus": 1,
+    "penaltyMinutes": 2,
+    "ppGoals": 1,
+    "ppPoints": 2,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 1,
+    "otGoals": 0,
+    "shots": 17,
+    "timeOnIcePerGame": 1000,
+    "evGoals": 2,
+    "evPoints": 5,
+    "faceoffWinPct": null
+   }
+  ],
+  "skater/realtime": [
+   {
+    "playerId": 8478402,
+    "hits": 5,
+    "blockedShots": 4,
+    "takeaways": 2,
+    "giveaways": 2
+   },
+   {
+    "playerId": 8478427,
+    "hits": 4,
+    "blockedShots": 3,
+    "takeaways": 2,
+    "giveaways": 2
+   },
+   {
+    "playerId": 8485555,
+    "hits": 7,
+    "blockedShots": 3,
+    "takeaways": 2,
+    "giveaways": 1
+   }
+  ],
+  "skater/faceoffwins": [
+   {
+    "playerId": 8478402,
+    "totalFaceoffWins": 75,
+    "totalFaceoffLosses": 62
+   },
+   {
+    "playerId": 8478427,
+    "totalFaceoffWins": 110,
+    "totalFaceoffLosses": 90
+   },
+   {
+    "playerId": 8485555,
+    "totalFaceoffWins": 40,
+    "totalFaceoffLosses": 45
+   }
+  ],
+  "goalie/summary": [
+   {
+    "playerId": 8477424,
+    "goalieFullName": "Juuse Saros",
+    "teamAbbrevs": "NSH",
+    "gamesPlayed": 8,
+    "gamesStarted": 8,
+    "wins": 2,
+    "losses": 5,
+    "otLosses": 1,
+    "goalsAgainst": 31,
+    "saves": 190,
+    "shotsAgainst": 221,
+    "shutouts": 0,
+    "timeOnIce": 28000,
+    "goals": 0,
+    "assists": 1,
+    "points": 1,
+    "penaltyMinutes": 0,
+    "savePct": 0.8597285067873304,
+    "goalsAgainstAverage": 3.9857142857142858
+   }
+  ]
+ },
+ "last14": {
+  "skater/summary": [
+   {
+    "playerId": 8478427,
+    "skaterFullName": "Sebastian Aho",
+    "positionCode": "C",
+    "teamAbbrevs": "CAR",
+    "gamesPlayed": 6,
+    "goals": 7,
+    "assists": 3,
+    "points": 10,
+    "plusMinus": 4,
+    "penaltyMinutes": 0,
+    "ppGoals": 3,
+    "ppPoints": 4,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 2,
+    "otGoals": 0,
+    "shots": 19,
+    "timeOnIcePerGame": 1310,
+    "evGoals": 4,
+    "evPoints": 6,
+    "faceoffWinPct": null
+   },
+   {
+    "playerId": 8485555,
+    "skaterFullName": "Rookie Newby",
+    "positionCode": "C",
+    "teamAbbrevs": "CAR",
+    "gamesPlayed": 5,
+    "goals": 2,
+    "assists": 3,
+    "points": 5,
+    "plusMinus": 1,
+    "penaltyMinutes": 0,
+    "ppGoals": 1,
+    "ppPoints": 2,
+    "shGoals": 0,
+    "shPoints": 0,
+    "gameWinningGoals": 0,
+    "otGoals": 0,
+    "shots": 11,
+    "timeOnIcePerGame": 1010,
+    "evGoals": 1,
+    "evPoints": 3,
+    "faceoffWinPct": null
+   }
+  ],
+  "skater/realtime": [
+   {
+    "playerId": 8478427,
+    "hits": 2,
+    "blockedShots": 2,
+    "takeaways": 1,
+    "giveaways": 1
+   },
+   {
+    "playerId": 8485555,
+    "hits": 4,
+    "blockedShots": 2,
+    "takeaways": 1,
+    "giveaways": 1
+   }
+  ],
+  "skater/faceoffwins": [
+   {
+    "playerId": 8478427,
+    "totalFaceoffWins": 66,
+    "totalFaceoffLosses": 55
+   },
+   {
+    "playerId": 8485555,
+    "totalFaceoffWins": 25,
+    "totalFaceoffLosses": 28
+   }
+  ],
+  "goalie/summary": []
+ }
+}

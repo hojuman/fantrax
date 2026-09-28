@@ -6,7 +6,7 @@ import json
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from hockey.config import DATA_DIR, Settings
@@ -27,7 +27,8 @@ from hockey.sources.fantrax_fxea import (
     parse_teams,
     scoring_consistency,
 )
-from hockey.sources.nhl import NhlClient, SeasonLine, completed_seasons, current_season
+from hockey.sources.moneypuck import MoneyPuckClient, MoneyPuckShapeError
+from hockey.sources.nhl import NhlClient, SeasonLine, completed_seasons, current_season, season_label
 
 
 @dataclass
@@ -232,8 +233,52 @@ def sync_nhl(
             (ln.nhl_id, ln.name, ln.pos_code, ln.pos_group, ln.team),
         )
     set_meta(conn, "seasons", {"current": cur, "completed": seasons})
+    set_meta(conn, "nhl_roster_ids", sorted(seen))
     report.counts["NHL season lines"] = len(lines)
     report.counts["NHL roster players"] = len(roster)
+
+    # In season: recent-form windows and team games played (for rest-of-season games).
+    conn.execute("DELETE FROM nhl_stat_window")
+    conn.execute("DELETE FROM nhl_team_games")
+    in_season = any(ln.season == cur for ln in lines)
+    if in_season:
+        until = today - timedelta(days=1)
+        for name, days in (("last30", 30), ("last14", 14)):
+            window = nhl.window(cur, today - timedelta(days=days), until)
+            for ln in window:
+                conn.execute(
+                    "INSERT OR REPLACE INTO nhl_stat_window VALUES (?,?,?,?,?,?)",
+                    (ln.nhl_id, name, until.isoformat(), ln.pos_group, ln.gp, json.dumps(ln.stats)),
+                )
+            report.counts[f"NHL {name} lines"] = len(window)
+        for team, gp in nhl.team_games_played().items():
+            conn.execute("INSERT INTO nhl_team_games VALUES (?,?,?,?)", (team, cur, gp, today.isoformat()))
+    else:
+        report.notes.append("Preseason: projections come from prior seasons only (no games yet this season).")
+    conn.commit()
+
+
+def sync_moneypuck(conn: sqlite3.Connection, http: HttpClient, today: date, report: SyncReport) -> None:
+    """MoneyPuck season summaries (xG, ice time, PP time) for the seasons we project from."""
+    mp = MoneyPuckClient(http, today)
+    total = 0
+    cur = current_season(today)
+    for season in [cur, *completed_seasons(today, 3)]:
+        try:
+            lines = mp.season(season)
+        except MoneyPuckShapeError as e:
+            if season == cur:  # e.g. an HTML placeholder before the season's file exists
+                report.notes.append(f"MoneyPuck has no usable {season_label(season)} file yet; skipped.")
+            else:
+                report.problems.append(f"{e}. Run `hockey probe` and share the MoneyPuck rows.")
+            continue
+        for ln in lines:
+            conn.execute(
+                "INSERT OR REPLACE INTO mp_season VALUES (?,?,?,?,?)",
+                (ln.nhl_id, ln.season, ln.pos_group, ln.gp, json.dumps(ln.data)),
+            )
+        total += len(lines)
+    report.counts["MoneyPuck lines"] = total
     conn.commit()
 
 

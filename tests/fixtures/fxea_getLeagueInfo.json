@@ -218,6 +218,10 @@
   "07pro": {
    "eligiblePos": "C",
    "status": "tbb0000000000000"
+  },
+  "08new": {
+   "eligiblePos": "C",
+   "status": "FA"
   }
  },
  "playoffs": {

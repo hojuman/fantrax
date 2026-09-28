@@ -19,6 +19,7 @@ from typing import Any
 from hockey.http import FetchError, HttpClient, ReadOnlyViolation
 from hockey.scoring.rules import ScoringConfigError, build_rules
 from hockey.sources import fantrax_fxea as fxea
+from hockey.sources import moneypuck as mp
 from hockey.sources.nhl import STATS, WEB, completed_seasons, current_season
 
 PERSONAL_KEY = re.compile(r"owner|manager|email|user|commish|commissioner|nick|secret", re.I)
@@ -246,4 +247,40 @@ def run_probe(
         )
     except (FetchError, ReadOnlyViolation) as e:
         results.append(ProbeResult("MoneyPuck data.htm (terms)", False, "error", str(e)))
+
+    # MoneyPuck season files: do the columns we read still exist?
+    year = season // 10000
+    for group, parser in (("skaters", mp.parse_skaters), ("goalies", mp.parse_goalies)):
+        name = f"MoneyPuck {year}/{group}.csv"
+        try:
+            resp = http.get(f"{mp.BASE}/{year}/regular/{group}.csv", ttl=0)
+            if resp.status != 200:
+                results.append(ProbeResult(name, False, f"HTTP {resp.status}", resp.text[:120]))
+                continue
+            header = resp.text.split("\n", 1)[0]
+            lines = parser(resp.text, season)
+            results.append(
+                ProbeResult(
+                    name, True, "200", f"{len(lines)} players parsed; {header.count(',') + 1} columns"
+                )
+            )
+        except mp.MoneyPuckShapeError as e:
+            results.append(ProbeResult(name, False, "columns", str(e)))
+        except (FetchError, ReadOnlyViolation) as e:
+            results.append(ProbeResult(name, False, "error", str(e)))
+
+    d = get_json("nhl_standings", f"{WEB}/standings/{today.isoformat()}")
+    if d is not None:
+        from hockey.sources.nhl import parse_standings
+
+        gp = parse_standings(d)
+        results.append(
+            ProbeResult(
+                f"NHL standings/{today.isoformat()}",
+                bool(gp),
+                "200",
+                f"{len(gp)} teams; games played {min(gp.values(), default=0)}–"
+                f"{max(gp.values(), default=0)} (0 or last season's 82 before opening night)",
+            )
+        )
     return results

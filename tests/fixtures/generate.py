@@ -31,6 +31,7 @@ NHL = [
     (8477967, "Thatcher", "Demko", "G", "VAN", "1995-12-08"),
     (8477424, "Juuse", "Saros", "G", "NSH", "1995-04-19"),
     (8484999, "Callup", "Rookie", "D", "CAR", "2005-01-01"),
+    (8485555, "Rookie", "Newby", "C", "CAR", "2007-02-01"),  # no NHL games before 2026-27
 ]
 rosters = {}
 for pid, fn, ln, pos, team, bd in NHL:
@@ -88,75 +89,251 @@ GO = {  # gp, gs, w, l, otl, ga, sv, sa, so, toi_sec
 }
 names = {pid: (f"{fn} {ln}", pos, team) for pid, fn, ln, pos, team, bd in NHL}
 old_team = {8478483: "TOR", 8476468: "VAN,NYR", 8480222: "NYI"}
+EMPTY = ("skater/summary", "skater/realtime", "skater/faceoffwins", "goalie/summary")
+
+
+def add_skaters(stats, sk):
+    for pid, seasons in sk.items():
+        name, pos, team = names[pid]
+        for season, t in seasons.items():
+            gp, g, a, pm, pim, ppg, ppp, shg, shp, gwg, sog, toi, hits, blk, fow, fol = t
+            s = stats.setdefault(str(season), {k: [] for k in EMPTY})
+            s["skater/summary"].append(
+                {
+                    "playerId": pid,
+                    "skaterFullName": name,
+                    "positionCode": pos,
+                    "teamAbbrevs": old_team.get(pid, team) if season < 20252026 else team,
+                    "gamesPlayed": gp,
+                    "goals": g,
+                    "assists": a,
+                    "points": g + a,
+                    "plusMinus": pm,
+                    "penaltyMinutes": pim,
+                    "ppGoals": ppg,
+                    "ppPoints": ppp,
+                    "shGoals": shg,
+                    "shPoints": shp,
+                    "gameWinningGoals": gwg,
+                    "otGoals": 0,
+                    "shots": sog,
+                    "timeOnIcePerGame": toi,
+                    "evGoals": g - ppg - shg,
+                    "evPoints": g + a - ppp - shp,
+                    "faceoffWinPct": None,
+                }
+            )
+            s["skater/realtime"].append(
+                {
+                    "playerId": pid,
+                    "hits": hits,
+                    "blockedShots": blk,
+                    "takeaways": gp // 4,
+                    "giveaways": gp // 5,
+                }
+            )
+            s["skater/faceoffwins"].append(
+                {"playerId": pid, "totalFaceoffWins": fow, "totalFaceoffLosses": fol}
+            )
+
+
+def add_goalies(stats, go):
+    for pid, seasons in go.items():
+        name, pos, team = names[pid]
+        for season, (gp, gs, w, losses, otl, ga, sv, sa, so, toi) in seasons.items():
+            s = stats.setdefault(str(season), {k: [] for k in EMPTY})
+            s["goalie/summary"].append(
+                {
+                    "playerId": pid,
+                    "goalieFullName": name,
+                    "teamAbbrevs": team,
+                    "gamesPlayed": gp,
+                    "gamesStarted": gs,
+                    "wins": w,
+                    "losses": losses,
+                    "otLosses": otl,
+                    "goalsAgainst": ga,
+                    "saves": sv,
+                    "shotsAgainst": sa,
+                    "shutouts": so,
+                    "timeOnIce": toi,
+                    "goals": 0,
+                    "assists": 1,
+                    "points": 1,
+                    "penaltyMinutes": 0,
+                    "savePct": sv / sa,
+                    "goalsAgainstAverage": ga * 3600 / toi,
+                }
+            )
+
+
 stats = {}
-for pid, seasons in SK.items():
-    name, pos, team = names[pid]
-    for season, t in seasons.items():
-        gp, g, a, pm, pim, ppg, ppp, shg, shp, gwg, sog, toi, hits, blk, fow, fol = t
-        s = stats.setdefault(
-            str(season),
-            {"skater/summary": [], "skater/realtime": [], "skater/faceoffwins": [], "goalie/summary": []},
-        )
-        s["skater/summary"].append(
-            {
-                "playerId": pid,
-                "skaterFullName": name,
-                "positionCode": pos,
-                "teamAbbrevs": old_team.get(pid, team) if season < 20252026 else team,
-                "gamesPlayed": gp,
-                "goals": g,
-                "assists": a,
-                "points": g + a,
-                "plusMinus": pm,
-                "penaltyMinutes": pim,
-                "ppGoals": ppg,
-                "ppPoints": ppp,
-                "shGoals": shg,
-                "shPoints": shp,
-                "gameWinningGoals": gwg,
-                "otGoals": 0,
-                "shots": sog,
-                "timeOnIcePerGame": toi,
-                "evGoals": g - ppg - shg,
-                "evPoints": g + a - ppp - shp,
-                "faceoffWinPct": None,
-            }
-        )
-        s["skater/realtime"].append(
-            {"playerId": pid, "hits": hits, "blockedShots": blk, "takeaways": 20, "giveaways": 15}
-        )
-        s["skater/faceoffwins"].append({"playerId": pid, "totalFaceoffWins": fow, "totalFaceoffLosses": fol})
-for pid, seasons in GO.items():
-    name, pos, team = names[pid]
-    for season, (gp, gs, w, losses, otl, ga, sv, sa, so, toi) in seasons.items():
-        s = stats.setdefault(
-            str(season),
-            {"skater/summary": [], "skater/realtime": [], "skater/faceoffwins": [], "goalie/summary": []},
-        )
-        s["goalie/summary"].append(
-            {
-                "playerId": pid,
-                "goalieFullName": name,
-                "teamAbbrevs": team,
-                "gamesPlayed": gp,
-                "gamesStarted": gs,
-                "wins": w,
-                "losses": losses,
-                "otLosses": otl,
-                "goalsAgainst": ga,
-                "saves": sv,
-                "shotsAgainst": sa,
-                "shutouts": so,
-                "timeOnIce": toi,
-                "goals": 0,
-                "assists": 1,
-                "points": 1,
-                "penaltyMinutes": 0,
-                "savePct": sv / sa,
-                "goalsAgainstAverage": ga * 3600 / toi,
-            }
-        )
+add_skaters(stats, SK)
+add_goalies(stats, GO)
 (F / "nhl_stats.json").write_text(json.dumps(stats, indent=1, ensure_ascii=False))
+
+# ------------------------------------------------------------------ in-season scenario (2026-11-15)
+# Every team has played 15 games. Aho (CAR C) is on a heater that expected goals don't support and
+# got PP1 time; McDavid is normal; Newby is a rookie with games but no prior; Saros is struggling.
+LIVE = 20262027
+CUR_SK = {
+    8478402: {LIVE: (15, 9, 18, 5, 4, 3, 9, 0, 0, 2, 60, 1330, 8, 6, 110, 95)},
+    8478427: {LIVE: (15, 13, 7, 6, 2, 5, 8, 0, 0, 3, 45, 1290, 6, 5, 160, 140)},
+    8480800: {LIVE: (15, 3, 14, 4, 2, 1, 7, 0, 0, 1, 36, 1510, 4, 13, 0, 0)},
+    8485555: {LIVE: (12, 4, 5, 2, 4, 1, 2, 0, 0, 1, 25, 980, 10, 4, 60, 70)},
+}
+CUR_GO = {8477424: {LIVE: (12, 12, 4, 7, 1, 44, 300, 344, 0, 12 * 3500)}}
+W30_SK = {
+    8478402: {LIVE: (10, 6, 12, 3, 2, 2, 6, 0, 0, 1, 40, 1330, 5, 4, 75, 62)},
+    8478427: {LIVE: (10, 10, 5, 5, 2, 4, 6, 0, 0, 2, 31, 1300, 4, 3, 110, 90)},
+    8485555: {LIVE: (8, 3, 4, 1, 2, 1, 2, 0, 0, 1, 17, 1000, 7, 3, 40, 45)},
+}
+W14_SK = {
+    8478427: {LIVE: (6, 7, 3, 4, 0, 3, 4, 0, 0, 2, 19, 1310, 2, 2, 66, 55)},
+    8485555: {LIVE: (5, 2, 3, 1, 0, 1, 2, 0, 0, 0, 11, 1010, 4, 2, 25, 28)},
+}
+W30_GO = {8477424: {LIVE: (8, 8, 2, 5, 1, 31, 190, 221, 0, 8 * 3500)}}
+live, w30, w14 = {}, {}, {}
+add_skaters(live, CUR_SK)
+add_goalies(live, CUR_GO)
+add_skaters(w30, W30_SK)
+add_goalies(w30, W30_GO)
+add_skaters(w14, W14_SK)
+(F / "nhl_stats_live.json").write_text(json.dumps(live, indent=1, ensure_ascii=False))
+(F / "nhl_windows.json").write_text(
+    json.dumps({"last30": w30[str(LIVE)], "last14": w14[str(LIVE)]}, indent=1, ensure_ascii=False)
+)
+TEAMS_NHL = [
+    "ANA",
+    "BOS",
+    "BUF",
+    "CGY",
+    "CAR",
+    "CHI",
+    "COL",
+    "CBJ",
+    "DAL",
+    "DET",
+    "EDM",
+    "FLA",
+    "LAK",
+    "MIN",
+    "MTL",
+    "NSH",
+    "NJD",
+    "NYI",
+    "NYR",
+    "OTT",
+    "PHI",
+    "PIT",
+    "SJS",
+    "SEA",
+    "STL",
+    "TBL",
+    "TOR",
+    "UTA",
+    "VAN",
+    "VGK",
+    "WSH",
+    "WPG",
+]
+(F / "nhl_standings.json").write_text(
+    json.dumps(
+        {"standings": [{"teamAbbrev": {"default": t}, "gamesPlayed": 15} for t in TEAMS_NHL]}, indent=1
+    )
+)
+
+# ------------------------------------------------------------------ MoneyPuck season summaries
+# Real files have ~150 columns; these carry the ones we read plus a few identifying ones, and three
+# situations so the parser has to pick the right rows. icetime is in seconds.
+MP_DIR = F / "moneypuck"
+MP_DIR.mkdir(exist_ok=True)
+IXG = {(8478402, 20252026): 38.5, (8478427, 20252026): 33.0, (8478427, LIVE): 6.5}  # others: goals * 0.9
+PP_SEC = {(8478427, LIVE): 15 * 240}  # Aho promoted to PP1: 4:00/GP vs 2:00 before
+
+
+def mp_files(season_stats, season):
+    sk_cols = [
+        "playerId",
+        "season",
+        "name",
+        "team",
+        "position",
+        "situation",
+        "games_played",
+        "icetime",
+        "I_F_xGoals",
+        "I_F_goals",
+        "I_F_shotsOnGoal",
+        "I_F_points",
+    ]
+    go_cols = [
+        "playerId",
+        "season",
+        "name",
+        "team",
+        "position",
+        "situation",
+        "games_played",
+        "icetime",
+        "xGoals",
+        "goals",
+        "ongoal",
+    ]
+    sk, go = io.StringIO(), io.StringIO()
+    ws, wg = csv.writer(sk), csv.writer(go)
+    ws.writerow(sk_cols)
+    wg.writerow(go_cols)
+    year = season // 10000
+    for r in season_stats.get("skater/summary", []):
+        pid, gp, g = r["playerId"], r["gamesPlayed"], r["goals"]
+        pos = "D" if r["positionCode"] == "D" else r["positionCode"]
+        ixg = IXG.get((pid, season), round(g * 0.9, 1))
+        toi = r["timeOnIcePerGame"] * gp
+        pp = PP_SEC.get((pid, season), gp * (120 if r["ppPoints"] >= 20 or season == LIVE else 30))
+        for sit, frac in (("all", 1.0), ("5on5", 0.8), ("5on4", None)):
+            ice = pp if frac is None else toi * frac
+            scale = (ice / toi) if toi else 0
+            ws.writerow(
+                [
+                    pid,
+                    year,
+                    r["skaterFullName"],
+                    r["teamAbbrevs"],
+                    pos,
+                    sit,
+                    gp,
+                    round(ice),
+                    round(ixg * scale, 2),
+                    round(g * scale),
+                    round(r["shots"] * scale),
+                    r["points"],
+                ]
+            )
+    for r in season_stats.get("goalie/summary", []):
+        for sit in ("all", "5on5"):
+            f = 1.0 if sit == "all" else 0.8
+            wg.writerow(
+                [
+                    r["playerId"],
+                    year,
+                    r["goalieFullName"],
+                    r["teamAbbrevs"],
+                    "G",
+                    sit,
+                    r["gamesPlayed"],
+                    round(r["timeOnIce"] * f),
+                    round(r["goalsAgainst"] * 0.95 * f, 2),
+                    round(r["goalsAgainst"] * f),
+                    round(r["shotsAgainst"] * f),
+                ]
+            )
+    (MP_DIR / f"{year}_skaters.csv").write_text(sk.getvalue())
+    (MP_DIR / f"{year}_goalies.csv").write_text(go.getvalue())
+
+
+for season_key, season_stats in {**stats, **live}.items():
+    mp_files(season_stats, int(season_key))
 
 # ------------------------------------------------------------------ Fantrax (real structure)
 # Shapes and key names copied from live responses (probe 2026-09-29). Anonymized per the user's
@@ -183,6 +360,7 @@ FX = [  # fantraxId, name, position, team, extras
     ("04dem", "Demko, Thatcher", "G", "VAN", {}),
     ("04sar", "Saros, Juuse", "G", "NSH", {}),
     ("07pro", "Prospect, Future", "C", "(N/A)", {}),
+    ("08new", "Newby, Rookie", "C", "CAR", {}),  # rookie on an NHL roster, free agent here
 ]
 (F / "fxea_getPlayerIds.json").write_text(
     json.dumps(

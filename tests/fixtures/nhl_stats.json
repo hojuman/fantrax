@@ -330,20 +330,20 @@
     "hits": 40,
     "blockedShots": 30,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8478427,
     "hits": 40,
     "blockedShots": 30,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8480222,
     "hits": 60,
     "blockedShots": 110,
-    "takeaways": 20,
+    "takeaways": 19,
     "giveaways": 15
    },
    {
@@ -351,77 +351,77 @@
     "hits": 30,
     "blockedShots": 30,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8477969,
     "hits": 80,
     "blockedShots": 120,
-    "takeaways": 20,
+    "takeaways": 18,
     "giveaways": 15
    },
    {
     "playerId": 8483678,
     "hits": 120,
     "blockedShots": 90,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 15,
+    "giveaways": 12
    },
    {
     "playerId": 8482116,
     "hits": 80,
     "blockedShots": 30,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8483515,
     "hits": 90,
     "blockedShots": 20,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8478483,
     "hits": 25,
     "blockedShots": 35,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8476468,
     "hits": 60,
     "blockedShots": 30,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8475158,
     "hits": 40,
     "blockedShots": 40,
-    "takeaways": 20,
+    "takeaways": 18,
     "giveaways": 15
    },
    {
     "playerId": 8480800,
     "hits": 20,
     "blockedShots": 70,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 18,
+    "giveaways": 14
    },
    {
     "playerId": 8481559,
     "hits": 20,
     "blockedShots": 20,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 15,
+    "giveaways": 12
    },
    {
     "playerId": 8484999,
     "hits": 10,
     "blockedShots": 8,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 1,
+    "giveaways": 1
    }
   ],
   "skater/faceoffwins": [
@@ -641,29 +641,29 @@
     "playerId": 8478402,
     "hits": 36,
     "blockedShots": 28,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 16,
+    "giveaways": 13
    },
    {
     "playerId": 8478427,
     "hits": 41,
     "blockedShots": 29,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    },
    {
     "playerId": 8480222,
     "hits": 55,
     "blockedShots": 100,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 17,
+    "giveaways": 14
    },
    {
     "playerId": 8480012,
     "hits": 25,
     "blockedShots": 26,
-    "takeaways": 20,
-    "giveaways": 15
+    "takeaways": 16,
+    "giveaways": 12
    }
   ],
   "skater/faceoffwins": [
@@ -789,14 +789,14 @@
     "playerId": 8478402,
     "hits": 38,
     "blockedShots": 34,
-    "takeaways": 20,
+    "takeaways": 19,
     "giveaways": 15
    },
    {
     "playerId": 8478427,
     "hits": 45,
     "blockedShots": 31,
-    "takeaways": 20,
+    "takeaways": 19,
     "giveaways": 15
    },
    {
@@ -804,7 +804,7 @@
     "hits": 30,
     "blockedShots": 35,
     "takeaways": 20,
-    "giveaways": 15
+    "giveaways": 16
    }
   ],
   "skater/faceoffwins": [

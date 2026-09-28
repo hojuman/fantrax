@@ -1,0 +1,13 @@
+playerId,season,name,team,position,situation,games_played,icetime,I_F_xGoals,I_F_goals,I_F_shotsOnGoal,I_F_points
+8478402,2026,Connor McDavid,EDM,C,all,15,19950,8.1,9,60,27
+8478402,2026,Connor McDavid,EDM,C,5on5,15,15960,6.48,7,48,27
+8478402,2026,Connor McDavid,EDM,C,5on4,15,1800,0.73,1,5,27
+8478427,2026,Sebastian Aho,CAR,C,all,15,19350,6.5,13,45,20
+8478427,2026,Sebastian Aho,CAR,C,5on5,15,15480,5.2,10,36,20
+8478427,2026,Sebastian Aho,CAR,C,5on4,15,3600,1.21,2,8,20
+8480800,2026,Quinn Hughes,VAN,D,all,15,22650,2.7,3,36,17
+8480800,2026,Quinn Hughes,VAN,D,5on5,15,18120,2.16,2,29,17
+8480800,2026,Quinn Hughes,VAN,D,5on4,15,1800,0.21,0,3,17
+8485555,2026,Rookie Newby,CAR,C,all,12,11760,3.6,4,25,9
+8485555,2026,Rookie Newby,CAR,C,5on5,12,9408,2.88,3,20,9
+8485555,2026,Rookie Newby,CAR,C,5on4,12,1440,0.44,0,3,9

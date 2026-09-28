@@ -1,0 +1,10 @@
+playerId,season,name,team,position,situation,games_played,icetime,I_F_xGoals,I_F_goals,I_F_shotsOnGoal,I_F_points
+8478402,2023,Connor McDavid,EDM,C,all,76,101080,28.8,32,250,132
+8478402,2023,Connor McDavid,EDM,C,5on5,76,80864,23.04,26,200,132
+8478402,2023,Connor McDavid,EDM,C,5on4,76,9120,2.6,3,23,132
+8478427,2023,Sebastian Aho,CAR,C,all,79,94010,32.4,36,240,89
+8478427,2023,Sebastian Aho,CAR,C,5on5,79,75208,25.92,29,192,89
+8478427,2023,Sebastian Aho,CAR,C,5on4,79,9480,3.27,4,24,89
+8480012,2023,Elias Pettersson,VAN,C,all,82,91840,30.6,34,220,89
+8480012,2023,Elias Pettersson,VAN,C,5on5,82,73472,24.48,27,176,89
+8480012,2023,Elias Pettersson,VAN,C,5on4,82,9840,3.28,4,24,89

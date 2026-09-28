@@ -1,0 +1,196 @@
+{
+ "standings": [
+  {
+   "teamAbbrev": {
+    "default": "ANA"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "BOS"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "BUF"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "CGY"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "CAR"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "CHI"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "COL"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "CBJ"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "DAL"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "DET"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "EDM"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "FLA"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "LAK"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "MIN"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "MTL"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "NSH"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "NJD"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "NYI"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "NYR"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "OTT"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "PHI"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "PIT"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "SJS"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "SEA"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "STL"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "TBL"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "TOR"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "UTA"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "VAN"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "VGK"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "WSH"
+   },
+   "gamesPlayed": 15
+  },
+  {
+   "teamAbbrev": {
+    "default": "WPG"
+   },
+   "gamesPlayed": 15
+  }
+ ]
+}

@@ -129,5 +129,11 @@
   "name": "Prospect, Future",
   "position": "C",
   "team": "(N/A)"
+ },
+ "08new": {
+  "fantraxId": "08new",
+  "name": "Newby, Rookie",
+  "position": "C",
+  "team": "CAR"
  }
 }

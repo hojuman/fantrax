@@ -30,6 +30,18 @@
     "positionCode": "C",
     "birthDate": "1997-07-26",
     "sweaterNumber": 1
+   },
+   {
+    "id": 8485555,
+    "firstName": {
+     "default": "Rookie"
+    },
+    "lastName": {
+     "default": "Newby"
+    },
+    "positionCode": "C",
+    "birthDate": "2007-02-01",
+    "sweaterNumber": 1
    }
   ],
   "defensemen": [

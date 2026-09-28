@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -22,11 +23,14 @@ def load(name: str):
 class FakeHttp:
     """Stands in for HttpClient: serves fixture files by URL, still enforcing the read-only guard."""
 
-    def __init__(self, overrides: dict[str, object] | None = None):
+    def __init__(self, overrides: dict[str, object] | None = None, *, live: bool = False):
+        """``live``: serve the 2026-27 in-season scenario (stats, recent windows, standings, MoneyPuck)."""
         self.overrides = overrides or {}
+        self.live = live
         self.calls: list[str] = []
         self.stats = {"hits": 0, "fetches": 0}
-        self.nhl_stats = load("nhl_stats.json")
+        self.nhl_stats = load("nhl_stats.json") | (load("nhl_stats_live.json") if live else {})
+        self.nhl_windows = load("nhl_windows.json") if live else {}
         self.nhl_rosters = load("nhl_rosters.json")
 
     def get(self, url, params=None, *, ttl=None, cache_if=None):
@@ -44,12 +48,27 @@ class FakeHttp:
             return Response(full, 200, (FIXTURES / f"fxea_{method}.json").read_text(), False)
         if parts.hostname == "api.nhle.com":
             kind_report = "/".join(path.split("/")[-2:])
-            season = q["cayenneExp"].split("seasonId=")[1]
-            rows = self.nhl_stats.get(season, {}).get(kind_report, [])
+            cayenne = q["cayenneExp"]
+            season = cayenne.split("seasonId=")[1].split()[0]
+            if "gameDate>=" in cayenne:
+                since = date.fromisoformat(cayenne.split('gameDate>="')[1][:10])
+                until = date.fromisoformat(cayenne.split('gameDate<="')[1][:10])
+                window = "last14" if (until - since).days < 20 else "last30"
+                rows = self.nhl_windows.get(window, {}).get(kind_report, [])
+            else:
+                rows = self.nhl_stats.get(season, {}).get(kind_report, [])
             start, limit = int(q.get("start", 0)), int(q.get("limit", 100))
             return Response(
                 full, 200, json.dumps({"data": rows[start : start + limit], "total": len(rows)}), False
             )
+        if "/standings/" in path:
+            return Response(full, 200, (FIXTURES / "nhl_standings.json").read_text(), False)
+        if parts.hostname == "moneypuck.com":
+            year, group = path.split("/")[-3], path.split("/")[-1].removesuffix(".csv")
+            f = FIXTURES / "moneypuck" / f"{year}_{group}.csv"
+            if f.exists() and (self.live or int(year) < 2026):
+                return Response(full, 200, f.read_text(), False)
+            return Response(full, 404, "not found", False)
         if "/roster/" in path:
             team = path.split("/")[-2]
             return Response(full, 200, json.dumps(self.nhl_rosters.get(team, {})), False)

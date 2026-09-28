@@ -190,8 +190,19 @@ class NhlClient:
     def _ttl(self, season: int) -> float | None:
         return FOREVER if season < current_season(self.today) else 6 * HOUR
 
-    def report(self, kind: str, report: str, season: int) -> list[dict]:
-        """All rows of a stats/rest report for one regular season, paginated."""
+    def report(
+        self, kind: str, report: str, season: int, *, since: date | None = None, until: date | None = None
+    ) -> list[dict]:
+        """All rows of a stats/rest report for one regular season, paginated.
+
+        With ``since``/``until`` the rows aggregate only games in that date range (recent form).
+        """
+        cayenne = f"gameTypeId={REGULAR_SEASON} and seasonId={season}"
+        if since:
+            cayenne += f' and gameDate>="{since.isoformat()}"'
+        if until:
+            cayenne += f' and gameDate<="{until.isoformat()} 23:59:59"'
+        ttl = 6 * HOUR if since else self._ttl(season)
         rows: list[dict] = []
         start = 0
         while True:
@@ -201,9 +212,9 @@ class NhlClient:
                 "sort": json.dumps([{"property": "playerId", "direction": "ASC"}]),
                 "start": start,
                 "limit": PAGE,
-                "cayenneExp": f"gameTypeId={REGULAR_SEASON} and seasonId={season}",
+                "cayenneExp": cayenne,
             }
-            resp = self.http.get(f"{STATS}/{kind}/{report}", params, ttl=self._ttl(season))
+            resp = self.http.get(f"{STATS}/{kind}/{report}", params, ttl=ttl)
             if resp.status != 200:
                 raise FetchError(resp.url, resp.status, f"NHL {kind}/{report} failed")
             body = resp.json()
@@ -212,6 +223,23 @@ class NhlClient:
             start += len(page)
             if not page or start >= int(body.get("total", 0)):
                 return rows
+
+    def window(self, season: int, since: date, until: date) -> list[SeasonLine]:
+        """Skater + goalie lines aggregated over [since, until] of the current season."""
+        kw = {"since": since, "until": until}
+        return merge_skater_rows(
+            self.report("skater", "summary", season, **kw),
+            self.report("skater", "realtime", season, **kw),
+            self.report("skater", "faceoffwins", season, **kw),
+            season,
+        ) + goalie_lines(self.report("goalie", "summary", season, **kw), season)
+
+    def team_games_played(self) -> dict[str, int]:
+        """Games played so far by each team, from the standings on ``today``."""
+        resp = self.http.get(f"{WEB}/standings/{self.today.isoformat()}", ttl=6 * HOUR)
+        if resp.status != 200:
+            raise FetchError(resp.url, resp.status, "NHL standings failed")
+        return parse_standings(resp.json())
 
     def skater_season(self, season: int) -> list[SeasonLine]:
         return merge_skater_rows(
@@ -245,6 +273,17 @@ class NhlClient:
                 continue
             players.extend(roster_players(resp.json(), team))
         return players, failed
+
+
+def parse_standings(data: dict) -> dict[str, int]:
+    out = {}
+    for row in data.get("standings") or []:
+        abbrev = row.get("teamAbbrev")
+        abbrev = abbrev.get("default") if isinstance(abbrev, dict) else abbrev
+        team = normalize_team(abbrev)
+        if team and isinstance(row.get("gamesPlayed"), int):
+            out[team] = row["gamesPlayed"]
+    return out
 
 
 def season_label(season: int) -> str:
