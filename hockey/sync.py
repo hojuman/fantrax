@@ -202,7 +202,11 @@ def sync_nhl(
             (ln.nhl_id, ln.season, ln.pos_group, ln.team, ln.gp, json.dumps(ln.stats)),
         )
     # Player universe: current rosters (current team, birth date), then anyone with recent stats.
-    roster = nhl.current_rosters()
+    roster, failed = nhl.current_rosters()
+    if failed:
+        report.notes.append(
+            f"NHL rosters unavailable for {', '.join(failed)}; their players keep last season's team."
+        )
     seen = set()
     for p in roster:
         seen.add(p.nhl_id)

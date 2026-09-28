@@ -74,3 +74,25 @@ def test_parse_rosters():
 def test_parse_rosters_bad_shape():
     with pytest.raises(fx.FantraxShapeError):
         fx.parse_rosters({"teams": []})
+
+
+def test_parse_player_ids_team_from_team_short_or_full_name():
+    data = {
+        "a1": {"fantraxId": "a1", "name": "Aho, Sebastian", "teamShortName": "CAR", "position": "C"},
+        "b2": {"fantraxId": "b2", "name": "Hughes, Jack", "teamName": "New Jersey Devils", "position": "C"},
+        "c3": {
+            "fantraxId": "c3",
+            "name": "Stützle, Tim",
+            "teamShortName": "",
+            "teamName": "Ottawa Senators",
+            "position": "C",
+            "rotowireId": "123",
+            "statsIncId": "9",
+            "shortName": "T. Stützle",
+        },
+        "d4": {"fantraxId": "d4", "name": "Prospect, Some", "teamShortName": "(N/A)", "position": "D"},
+    }
+    p = {x.fantrax_id: x for x in fx.parse_player_ids(data)}
+    assert p["a1"].nhl_team == "CAR" and p["b2"].nhl_team == "NJD" and p["c3"].nhl_team == "OTT"
+    assert p["d4"].nhl_team is None
+    assert p["c3"].extra == {"rotowireId": "123", "statsIncId": "9"}

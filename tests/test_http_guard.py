@@ -83,3 +83,59 @@ def test_refresh_bypasses_cache(conn, monkeypatch):
     client = HttpClient(conn, refresh=True)
     monkeypatch.setattr(client, "_fetch", lambda u: Response(u, 200, '{"new": 1}', False))
     assert client.get(url).json() == {"new": 1}
+
+
+def _client_with(conn, handler):
+    import httpx
+
+    c = HttpClient(conn, transport=httpx.MockTransport(handler), max_attempts=1)
+    c._throttle = lambda host: None  # no sleeping in tests
+    return c
+
+
+def test_same_host_redirect_followed_and_cached_under_original_url(conn):
+    import httpx
+
+    def handler(req):
+        if req.url.path == "/v1/roster/VAN/current":
+            return httpx.Response(307, headers={"location": "/v1/roster/VAN/20262027"})
+        return httpx.Response(200, json={"forwards": []})
+
+    url = "https://api-web.nhle.com/v1/roster/VAN/current"
+    r = _client_with(conn, handler).get(url)
+    assert r.status == 200 and r.url == url and r.json() == {"forwards": []}
+    assert conn.execute("SELECT url FROM http_cache").fetchone()[0] == url
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://www.fantrax.com/fxpa/req",  # allowed host, forbidden path
+        "https://evil.example.com/x",  # off the allowlist
+        "https://api.nhle.com/stats/rest/en/x",  # allowlisted, but a different host
+    ],
+)
+def test_redirect_off_allowlist_refused(conn, location):
+    import httpx
+
+    handler = lambda req: httpx.Response(302, headers={"location": location})  # noqa: E731
+    with pytest.raises(ReadOnlyViolation):
+        _client_with(conn, handler).get("https://api-web.nhle.com/v1/schedule/now")
+
+
+def test_fantrax_redirect_to_web_app_refused(conn):
+    import httpx
+
+    handler = lambda req: httpx.Response(302, headers={"location": "/fantasy/league/x/home"})  # noqa: E731
+    with pytest.raises(ReadOnlyViolation):
+        _client_with(conn, handler).get("https://www.fantrax.com/fxea/general/getLeagueInfo?leagueId=x")
+
+
+def test_redirect_loop_stops(conn):
+    import httpx
+
+    from hockey.http import FetchError
+
+    handler = lambda req: httpx.Response(307, headers={"location": "/v1/schedule/now"})  # noqa: E731
+    with pytest.raises(FetchError, match="redirects"):
+        _client_with(conn, handler).get("https://api-web.nhle.com/v1/schedule/now")

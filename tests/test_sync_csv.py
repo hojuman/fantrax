@@ -135,3 +135,23 @@ def test_cli_sync_reports_fantrax_refusal(tmp_path, monkeypatch):
     )
     result = CliRunner().invoke(cli.app, ["sync"])
     assert result.exit_code == 1 and "hockey probe" in result.output and "Traceback" not in result.output
+
+
+def test_nhl_roster_failure_for_one_team_does_not_abort(conn, settings):
+    from hockey.http import FetchError
+
+    class Flaky(FakeHttp):
+        def get(self, url, params=None, **kw):
+            if "/roster/VAN/" in url:
+                raise FetchError(url, None, "boom")
+            return super().get(url, params, **kw)
+
+    report = full_sync(conn, settings, Flaky())
+    assert any("VAN" in n for n in report.notes)
+    assert report.counts["NHL roster players"] > 0
+
+
+def test_roster_urls_use_explicit_season(conn, settings, fake_http):
+    full_sync(conn, settings, fake_http)
+    roster_calls = [c for c in fake_http.calls if "/roster/" in c]
+    assert len(roster_calls) == 32 and all(c.endswith("/20262027") for c in roster_calls)

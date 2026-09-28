@@ -103,7 +103,7 @@ def probe() -> None:
     settings, conn, http = _open(refresh=True)
     out = REPO_ROOT / "var" / "probe"
     try:
-        results = run_probe(http, settings.league_id or None, out, date.today())
+        results = run_probe(http, settings.league_id or None, out, date.today(), settings.league)
     finally:
         http.close()
     t = Table(title="Data source probe", title_justify="left")

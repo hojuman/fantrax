@@ -4,6 +4,8 @@ Guarantees, enforced in code (see tests/test_http_guard.py):
   * GET only. There is no method for POST/PUT/DELETE, so no roster move, claim or trade can be sent.
   * Host allowlist. On fantrax.com only the published, keyless /fxea/ API is allowed; the private
     web-app backend (/fxpa/) is refused, per the Fantrax ToS decision recorded in CLAUDE.md.
+  * Redirects are followed only to URLs that pass the same allowlist on the same host (the NHL web
+    API 307s e.g. /roster/VAN/current -> /roster/VAN/20262027); at most MAX_REDIRECTS hops.
   * Every response is cached in SQLite with a per-call TTL; per-host rate limiting and backoff.
 """
 
@@ -15,7 +17,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode, urljoin, urlsplit
 
 import httpx
 
@@ -34,6 +36,7 @@ RATE_LIMITS = {
     "api-web.nhle.com": 0.5,
     "moneypuck.com": 2.0,
 }
+MAX_REDIRECTS = 3
 ALLOWED_PATH_PREFIXES = {
     "www.fantrax.com": ("/fxea/",),
 }
@@ -88,6 +91,7 @@ class HttpClient:
     timeout: float = 30.0
     max_attempts: int = 4
     _last_request: dict[str, float] = field(default_factory=dict)
+    transport: httpx.BaseTransport | None = None  # tests inject httpx.MockTransport
     _client: httpx.Client | None = None
     stats: dict[str, int] = field(default_factory=lambda: {"hits": 0, "fetches": 0})
 
@@ -134,9 +138,33 @@ class HttpClient:
         self._last_request[host] = time.monotonic()
 
     def _fetch(self, url: str) -> Response:
+        """Fetch with retries, following only allowlisted same-host redirects.
+
+        The returned Response carries the *requested* URL so the cache key stays stable.
+        """
+        current = url
+        for _hop in range(MAX_REDIRECTS + 1):
+            r = self._fetch_once(current)
+            if not r.is_redirect:
+                return Response(url, r.status_code, r.text, from_cache=False)
+            location = r.headers.get("location")
+            if not location:
+                raise FetchError(current, r.status_code, "redirect without a Location header")
+            target = urljoin(current, location)
+            check_allowed(target)  # raises ReadOnlyViolation if it would leave the allowlist
+            if urlsplit(target).hostname != urlsplit(current).hostname:
+                raise ReadOnlyViolation(f"Cross-host redirect refused: {current} -> {target}")
+            log.info("GET %s redirected (%s) to %s", current, r.status_code, target)
+            current = target
+        raise FetchError(url, None, f"more than {MAX_REDIRECTS} redirects")
+
+    def _fetch_once(self, url: str) -> httpx.Response:
         if self._client is None:
             self._client = httpx.Client(
-                timeout=self.timeout, headers={"User-Agent": USER_AGENT}, follow_redirects=False
+                timeout=self.timeout,
+                headers={"User-Agent": USER_AGENT},
+                follow_redirects=False,  # we follow them ourselves, through check_allowed()
+                transport=self.transport,
             )
         host = urlsplit(url).hostname or ""
         delay = 2.0
@@ -150,13 +178,8 @@ class HttpClient:
             else:
                 if r.status_code == 429 or r.status_code >= 500:
                     last_error = f"HTTP {r.status_code}"
-                elif r.is_redirect:
-                    # Never follow redirects blindly: they could leave the allowlist.
-                    raise FetchError(
-                        url, r.status_code, f"unexpected redirect to {r.headers.get('location')}"
-                    )
                 else:
-                    return Response(url, r.status_code, r.text, from_cache=False)
+                    return r
             if attempt < self.max_attempts:
                 log.warning("GET %s failed (%s); retrying in %.0fs", url, last_error, delay)
                 time.sleep(delay)

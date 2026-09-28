@@ -11,16 +11,20 @@ import hashlib
 import html
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from hockey.http import FetchError, HttpClient, ReadOnlyViolation
+from hockey.scoring.rules import ScoringConfigError, build_rules
 from hockey.sources import fantrax_fxea as fxea
-from hockey.sources.nhl import STATS, WEB, completed_seasons
+from hockey.sources.nhl import STATS, WEB, completed_seasons, current_season
 
 PERSONAL_KEY = re.compile(r"owner|manager|email|user|commish|commissioner|nick|secret", re.I)
 KEEP_NAMES = ("aho", "pettersson")  # ID-mapping traps worth keeping in samples
+SAMPLE_PLAYER = "mcdavid"  # a player who'll always be in the feed; his raw entry exposes renames
+TERMS_RE = re.compile(r"commercial|credit|licen|permission|terms|allowed|free to use|attribution", re.I)
 MAX_ITEMS = 25
 
 
@@ -59,7 +63,57 @@ def _shape(data: Any) -> str:
     return type(data).__name__
 
 
-def run_probe(http: HttpClient, league_id: str | None, out_dir: Path, today) -> list[ProbeResult]:
+def terms_sentences(page: str, limit: int = 6) -> list[str]:
+    """Sentences about usage terms from an HTML page (style/script bodies removed first)."""
+    page = re.sub(r"<(head|style|script)\b[^>]*>.*?</\1\s*>", " ", page, flags=re.I | re.S)
+    page = re.sub(r"</?(p|div|li|h[1-6]|br|tr|td|title)\b[^>]*>", " . ", page, flags=re.I)  # block = break
+    text = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", page)).split())
+    sentences = (s.strip(" .") for s in re.split(r"(?<=[.!?])\s+", text))
+    return [s + "." for s in sentences if s and TERMS_RE.search(s)][:limit]
+
+
+def describe_scoring(scoring: dict[str, dict[str, float]] | None, league: dict | None = None) -> str:
+    """Parsed scoring table plus whether our rules layer accepts every code."""
+    if not scoring:
+        return "scoring: NOT FOUND in getLeagueInfo (fill data/league.yaml)"
+    table = "; ".join(
+        f"{g}: " + ", ".join(f"{c}={w:g}" for c, w in codes.items()) for g, codes in scoring.items()
+    )
+    cfg = (league or {}).get("scoring") or {}
+    try:
+        build_rules(
+            scoring,
+            source="fantrax",
+            code_aliases=cfg.get("code_aliases"),
+            ignore_codes=cfg.get("ignore_codes"),
+        )
+    except ScoringConfigError as e:
+        return f"scoring: {table} | MAPPING FAILED: {e}"
+    return f"scoring: {table} | all codes mapped ✓"
+
+
+def sample_player_entry(data: Any, needle: str = SAMPLE_PLAYER) -> str:
+    items = data.values() if isinstance(data, dict) else data if isinstance(data, list) else []
+    for v in items:
+        if isinstance(v, dict) and needle in str(v.get("name", "")).lower():
+            return json.dumps(v, ensure_ascii=False, sort_keys=True)
+    return f"no entry containing {needle!r}"
+
+
+def value_counts(rows: list[dict], key: str) -> str:
+    c = Counter(str(r.get(key)) for r in rows if isinstance(r, dict))
+    return ", ".join(f"{k}×{n}" for k, n in c.most_common(10)) or "none"
+
+
+def _roster_items(rosters: Any) -> list[dict]:
+    teams = rosters.get("rosters") if isinstance(rosters, dict) else None
+    teams = teams.values() if isinstance(teams, dict) else teams or []
+    return [i for t in teams if isinstance(t, dict) for i in (t.get("rosterItems") or t.get("players") or [])]
+
+
+def run_probe(
+    http: HttpClient, league_id: str | None, out_dir: Path, today, league: dict | None = None
+) -> list[ProbeResult]:
     out_dir.mkdir(parents=True, exist_ok=True)
     results: list[ProbeResult] = []
 
@@ -97,8 +151,9 @@ def run_probe(http: HttpClient, league_id: str | None, out_dir: Path, today) -> 
                 "fxea getPlayerIds",
                 True,
                 "200",
-                f"{len(players)} players parsed; extra fields: {extra_keys or 'none'} "
-                "(an NHL id here would make ID mapping trivial)",
+                f"{len(players)} players parsed; extra fields: {extra_keys or 'none'}; "
+                f"with an NHL team: {sum(1 for p in players if p.nhl_team)} | "
+                f"sample: {sample_player_entry(data)}",
             )
         )
     if league_id:
@@ -110,8 +165,9 @@ def run_probe(http: HttpClient, league_id: str | None, out_dir: Path, today) -> 
                     "fxea getLeagueInfo",
                     True,
                     "200",
-                    f"{_shape(info)} | teams parsed: {len(teams)}, pool: {len(pool)}, "
-                    f"scoring codes: { ({g: len(c) for g, c in scoring.items()} if scoring else 'NOT FOUND') }",
+                    f"{_shape(info)} | teams parsed: {len(teams)}, pool: {len(pool)} "
+                    f"(status: {value_counts(list(pool.values()), 'status')}) | "
+                    f"{describe_scoring(scoring, league)} | rosterInfo: {json.dumps(info.get('rosterInfo'))[:300]}",
                 )
             )
         rosters = get_json("fxea_getTeamRosters", f"{fxea.BASE}/getTeamRosters", {"leagueId": league_id})
@@ -120,7 +176,13 @@ def run_probe(http: HttpClient, league_id: str | None, out_dir: Path, today) -> 
                 n = len(fxea.parse_rosters(rosters))
                 results.append(
                     ProbeResult(
-                        "fxea getTeamRosters", True, "200", f"{_shape(rosters)} | {n} roster rows parsed"
+                        "fxea getTeamRosters",
+                        True,
+                        "200",
+                        f"{_shape(rosters)} | {n} roster rows parsed | "
+                        f"status: {value_counts(_roster_items(rosters), 'status')} | "
+                        f"position: {value_counts(_roster_items(rosters), 'position')} | "
+                        f"item keys: {sorted(_roster_items(rosters)[0]) if _roster_items(rosters) else []}",
                     )
                 )
             except fxea.FantraxShapeError as e:
@@ -162,22 +224,18 @@ def run_probe(http: HttpClient, league_id: str | None, out_dir: Path, today) -> 
                     f"total={d.get('total')} fields: {', '.join(sorted(row)[:12])}…",
                 )
             )
-    d = get_json("nhl_roster_VAN", f"{WEB}/roster/VAN/current")
+    cur = current_season(today)
+    d = get_json("nhl_roster_VAN", f"{WEB}/roster/VAN/{cur}")
     if d is not None:
-        results.append(ProbeResult("NHL roster/VAN/current", True, "200", _shape(d)))
-    d = get_json("nhl_schedule_now", f"{WEB}/schedule/now")
+        results.append(ProbeResult(f"NHL roster/VAN/{cur}", True, "200", _shape(d)))
+    d = get_json("nhl_schedule", f"{WEB}/schedule/{today.isoformat()}")
     if d is not None:
-        results.append(ProbeResult("NHL schedule/now", True, "200", _shape(d)))
+        results.append(ProbeResult(f"NHL schedule/{today.isoformat()}", True, "200", _shape(d)))
 
     # --- MoneyPuck: terms first; data is only used after you've read these.
     try:
         resp = http.get("https://moneypuck.com/data.htm", ttl=0)
-        text = html.unescape(re.sub(r"<[^>]+>", " ", resp.text))
-        sentences = [
-            s.strip()
-            for s in re.split(r"(?<=[.!?])\s+", " ".join(text.split()))
-            if re.search(r"commercial|credit|licen|permission|terms|allowed|free to use|attribut", s, re.I)
-        ]
+        sentences = terms_sentences(resp.text)
         results.append(
             ProbeResult(
                 "MoneyPuck data.htm (terms)",

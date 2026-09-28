@@ -21,7 +21,8 @@ League facts (10 teams, H2H points, weekly Monday lock, 2C/2LW/2RW/4D/2G, keeper
 uv sync                         # install
 uv run pytest                   # offline test suite
 uv run ruff check . && uv run ruff format --check .
-uv run hockey probe             # live check of every source; sanitized samples -> var/probe/
+uv run hockey probe             # live check of every source: scoring table + mapping result, a sample
+                                #   player entry, roster/pool status counts; samples -> var/probe/
 uv run hockey sync [--refresh]  # Fantrax + NHL + ID mapping into var/hockey.db
 uv run hockey roster [--team X] # roster with projected FP under league scoring
 uv run hockey ids --unmatched | --fuzzy
@@ -35,29 +36,39 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 | Fantrax fxea (published) | `/fxea/general/getPlayerIds?sport=NHL`, `getLeagueInfo?leagueId=`, `getTeamRosters?leagueId=`, `getStandings?leagueId=` | none | ids 7d, league 24h, rosters 1h |
 | Fantrax CSV (manual) | Players page / roster → Download CSV → `hockey import-csv` | user's browser | n/a |
 | NHL stats REST | `api.nhle.com/stats/rest/en/{skater,goalie}/{summary,realtime,faceoffwins}` (paginated 100/page, `cayenneExp=gameTypeId=2 and seasonId=YYYYYYYY`) | none | past seasons forever, current 6h |
-| NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/current` (32 calls) | none | 24h |
+| NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this) | none | 24h |
 | MoneyPuck (Phase 2) | `moneypuck.com/moneypuck/playerData/seasonSummary/{yr}/regular/{skaters,goalies}.csv`; `playerId` = NHL id | none | 24h |
 
+`getPlayerIds` (verified 2026-09-29, 9,045 NHL players) carries **no NHL id**. Its extra fields are
+`rotowireId, sportRadarId, statsIncId, shortName, teamName, teamShortName`. The team is read from
+`team`, then `teamShortName`, then `teamName` (full names are mapped in `sources/teams.py`).
+
 Rate limits (`http.py`): Fantrax ≥1s between requests, NHL ≥0.5s, MoneyPuck ≥2s; retries with
-exponential backoff on 429/5xx/transport errors; redirects are never followed.
-MoneyPuck: **not used until the user has read its terms** (`hockey probe` prints them). If used,
-credit MoneyPuck.com in any report output.
+exponential backoff on 429/5xx/transport errors. Redirects are followed (max 3 hops) **only** when
+the target passes `check_allowed()` on the same host; anything else raises `ReadOnlyViolation`.
+MoneyPuck terms (read 2026-09-29): "free to use for non-commercial purposes… Please clearly credit
+MoneyPuck.com in all cases where you are showing anything using our data as an input." The user
+approved it for Phase 2: **every output that uses MoneyPuck data must show a MoneyPuck.com credit.**
 
 ## Known fragile points
-1. **fxea on a private league.** Unverified whether `getLeagueInfo`/`getTeamRosters` serve private
-   leagues. If refused, sync reports it and falls back: rosters via `hockey import-csv`, scoring via
-   `data/league.yaml`. `getPlayerIds` is league-independent and should always work.
+1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
+   (10 teams, pool 8,747, 8 skater + 4 goalie scoring codes), getTeamRosters (248 rows), and
+   getStandings. If Fantrax ever refuses, sync reports it and falls back: rosters via
+   `hockey import-csv`, scoring via `data/league.yaml`.
 2. **Fantrax errors arrive as HTTP 200** with an error object. `fantrax_fxea.body_error()` checks
    every body; error bodies are never cached.
 3. **Response shapes are best-known guesses** until `hockey probe` runs against the real league.
    Parsers raise `FantraxShapeError` rather than guessing. Test fixtures in `tests/fixtures/` are
-   hand-built; after a successful probe, diff `var/probe/*.json` against them and update both the
-   parsers and fixtures deliberately (samples are sanitized and truncated, but review before
-   committing: they contain league roster data).
+   hand-built. After a successful probe, diff `var/probe/*.json` against them and update both the
+   parsers and fixtures deliberately. **The user asked that fixtures be anonymized further:**
+   placeholder team names (except "The Blue Blazers"), no owner or manager fields, and only the
+   players the tests need. Never copy raw probe samples into the repo.
 4. **Scoring code mapping** (`scoring/rules.py`): unknown Fantrax stat codes raise; rate stats (GAA,
    SV%) are refused, not guessed. Escape hatches: `scoring.code_aliases` / `ignore_codes` in
    `data/league.yaml`. Verify with `hockey validate-scoring` on a Fantrax stats CSV export.
-5. **NHL API is unofficial/undocumented.** Field names used: see `sources/nhl.py`
+5. **NHL API is unofficial/undocumented.** The web API uses 307 redirects for "current"/"now" URLs.
+   We request explicit-season URLs, and follow only allowlisted same-host redirects. One team's
+   roster failing is a sync note, not an abort. Field names used: see `sources/nhl.py`
    (`merge_skater_rows`, `goalie_lines`, `roster_players`). If NHL renames a field, stats silently
    become 0: check `hockey probe` field lists first when numbers look off.
 6. **ID mapping** (most likely to break). See next section.

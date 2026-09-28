@@ -224,15 +224,27 @@ class NhlClient:
     def goalie_season(self, season: int) -> list[SeasonLine]:
         return goalie_lines(self.report("goalie", "summary", season), season)
 
-    def current_rosters(self) -> list[NhlPlayer]:
-        players = []
+    def current_rosters(self) -> tuple[list[NhlPlayer], list[str]]:
+        """Rosters for the current season, plus the teams that failed (so one bad team can't abort).
+
+        Uses /roster/{team}/{season} directly: /roster/{team}/current is a 307 to the same thing.
+        """
+        season = current_season(self.today)
+        players: list[NhlPlayer] = []
+        failed: list[str] = []
         for team in NHL_TEAMS:
-            resp = self.http.get(f"{WEB}/roster/{team}/current", ttl=DAY)
+            try:
+                resp = self.http.get(f"{WEB}/roster/{team}/{season}", ttl=DAY)
+            except FetchError as e:
+                log.warning("NHL roster %s: %s", team, e)
+                failed.append(team)
+                continue
             if resp.status != 200:
                 log.warning("NHL roster %s: HTTP %s", team, resp.status)
+                failed.append(team)
                 continue
             players.extend(roster_players(resp.json(), team))
-        return players
+        return players, failed
 
 
 def season_label(season: int) -> str:

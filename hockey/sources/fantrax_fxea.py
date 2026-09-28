@@ -126,12 +126,27 @@ def parse_player_ids(data: Any) -> list[FantraxPlayer]:
         if not fid or not name:
             continue
         positions = str(v.get("position") or v.get("positions") or v.get("pos") or "")
-        known = {"name", "playerName", "team", "position", "positions", "pos", *_ID_KEYS}
+        # The live feed carries the team as teamShortName/teamName (probe 2026-09-29), not "team".
+        team = next(
+            (t for k in ("team", "teamShortName", "teamName") if (t := normalize_team(v.get(k)))), None
+        )
+        known = {
+            "name",
+            "playerName",
+            "team",
+            "teamShortName",
+            "teamName",
+            "shortName",
+            "position",
+            "positions",
+            "pos",
+            *_ID_KEYS,
+        }
         out.append(
             FantraxPlayer(
                 fantrax_id=fid,
                 name=display_name(str(name)),
-                nhl_team=normalize_team(v.get("team")),
+                nhl_team=team,
                 positions=positions,
                 pos_group=pos_group(positions),
                 extra={k: val for k, val in v.items() if k not in known},
