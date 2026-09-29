@@ -616,7 +616,10 @@ def _news(conn, settings, refresh: bool = False, required: bool = False):
         client = make_client(settings.league)
         console.print("[dim]Checking the news for your roster and the top free agents (web search)…[/]")
         ctx = LeagueContext(settings, conn, None, my_team(conn, settings))
-        return ai_news.scan(ctx, client, on_tool=_on_tool)
+        try:
+            return ai_news.scan(ctx, client, on_tool=_on_tool)
+        finally:
+            _dropped_note(client)
     except AiUnavailable as e:
         console.print(f"[yellow]{e}[/]" + ("" if required else " (continuing without AI news)"))
         if required:
@@ -626,6 +629,14 @@ def _news(conn, settings, refresh: bool = False, required: bool = False):
             _fail(e)
         console.print(f"[yellow]AI news skipped: {e}[/]")
     return None
+
+
+def _dropped_note(client) -> None:
+    if client.dropped_domains:
+        console.print(
+            f"[yellow]Skipped news sites that block Anthropic's search: {', '.join(client.dropped_domains)}. "
+            "Remove them from ai.news_domains in data/league.yaml.[/]"
+        )
 
 
 def _news_outs(news, play: list[str] | None) -> dict[str, str]:
@@ -700,6 +711,8 @@ def ask(
                 )
             except AiError as e:
                 _fail(e)
+            finally:
+                _dropped_note(client)
             console.print()
             if ans.truncated:
                 console.print("[yellow]The answer hit the length limit and was cut short.[/]")

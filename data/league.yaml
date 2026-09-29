@@ -62,6 +62,6 @@ ai:
   max_tokens: 16000
   fallbacks: true              # if the model declines, the API retries on its recommended fallback model
   web_search: true             # news via Anthropic's server-side web search (fantrax.com is always excluded)
-  news_domains: [nhl.com, dailyfaceoff.com, sportsnet.ca, tsn.ca, espn.com]
+  news_domains: [nhl.com, dailyfaceoff.com, tsn.ca, espn.com]   # not sportsnet.ca: it blocks Anthropic's crawler
   max_searches: 8              # web searches per request
   news_ttl_hours: 6            # `--ai` reuses stored news flags this long before searching again

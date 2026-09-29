@@ -174,6 +174,10 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
   starting_goalie / other, with source + date. Stored in `meta.ai_news`, reused for `ai.news_ttl_hours`.
   `lineup --ai` benches `out` players (reason "out per AI news: …"; `--play NAME` overrides). Other
   flags are shown next to the players and never folded into the numbers.
+- **Blocked news sites:** some sites block Anthropic's crawler (sportsnet.ca does), and web search
+  rejects the whole request (400 "not accessible to our user agent"). `AiClient.create` drops the named
+  domains, retries, and the CLI says which to remove from `ai.news_domains`. Any other API error becomes
+  `AiError`, so `--ai` carries on without the AI parts instead of crashing.
 - **Report** (`report --ai`): the engine report is rendered first, then Claude writes 3–5 "AI take"
   bullets from it plus the news (`ai/take.py`). This section comes first in the markdown.
 - **Credit and framing:** answers built on MoneyPuck-based projections print `CREDIT` (the executor

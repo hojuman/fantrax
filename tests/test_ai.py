@@ -72,7 +72,10 @@ class FakeSdk:
 
     def _stream(self, **req):
         self.requests.append(req | {"messages": list(req["messages"])})
-        return _Stream(self.replies.pop(0))
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return _Stream(reply)
 
     def _parse(self, **req):
         self.parse_requests.append(req)
@@ -248,6 +251,54 @@ def test_converse_runs_tools_and_resumes_paused_turns(ctx):
     )
     assert reqs[2]["messages"][-1]["role"] == "assistant"
     assert ans.input_tokens == 300
+
+
+def api_error(msg, status=400):
+    import anthropic
+    import httpx2
+
+    response = httpx2.Response(
+        status, request=httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    )
+    cls = anthropic.BadRequestError if status == 400 else anthropic.InternalServerError
+    return cls(msg, response=response, body=None)
+
+
+BLOCKED = (
+    "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': "
+    "\"The following domains are not accessible to our user agent: ['sportsnet.ca', 'tsn.ca']. Read more: ...\"}}"
+)
+
+
+def test_blocked_news_sites_are_dropped_and_retried():
+    client = fake_client(
+        [api_error(BLOCKED), message("end_turn", text("ok"))],
+        news_domains=("nhl.com", "sportsnet.ca", "tsn.ca"),
+    )
+    ans = converse(client, [], [{"role": "user", "content": "news?"}], web=True)
+    assert ans.text == "ok" and client.dropped_domains == ["sportsnet.ca", "tsn.ca"]
+    first, retry = client.sdk.requests
+    assert "sportsnet.ca" in first["tools"][-1]["allowed_domains"]
+    assert retry["tools"][-1]["allowed_domains"] == ["nhl.com"]
+    assert client.settings.news_domains == ("nhl.com",)
+
+
+def test_api_errors_become_ai_errors():
+    with pytest.raises(AiError, match="Claude API error"):
+        converse(fake_client([api_error("overloaded", 500)]), [], [{"role": "user", "content": "q"}])
+    with pytest.raises(ValueError):  # non-API bugs still surface
+        converse(fake_client([ValueError("bug")]), [], [{"role": "user", "content": "q"}])
+
+
+def test_cli_report_ai_survives_api_errors(cli_db, tmp_path, monkeypatch):  # noqa: F811
+    client = fake_client([api_error("overloaded", 500), api_error("overloaded", 500)])
+    monkeypatch.setattr("hockey.ai.client.make_client", lambda league, **kw: client)
+    ok = cli_db.invoke(
+        cli.app, ["report", "--ai", "--out-dir", str(tmp_path / "rep")], env={"COLUMNS": "200"}
+    )
+    assert ok.exit_code == 0, ok.output
+    assert "AI news skipped: Claude API error" in ok.output and "AI take skipped" in ok.output
+    assert "## Lineup" in next((tmp_path / "rep").glob("*.md")).read_text()
 
 
 def test_converse_refusal_and_runaway():
