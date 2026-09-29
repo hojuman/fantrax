@@ -24,6 +24,13 @@ uv run hockey ids --unmatched            # rostered players without an NHL id
 uv run pytest                            # offline tests
 ```
 
+Browser UI (local only, http://127.0.0.1:8765; the terminal commands keep working):
+
+```bash
+uv sync --extra web --extra ai
+uv run hockey web           # opens your browser: dashboard, lineup, waivers, trade, keepers, league, AI chat
+```
+
 Optional AI layer (Claude reads the engine's numbers, adds news and judgment; still read-only):
 
 ```bash
@@ -40,5 +47,8 @@ Daily report on a schedule (macOS/Linux cron, 8:15 every morning):
 ```
 15 8 * * * cd /path/to/fantrax && uv run hockey report --sync   # add --ai for the AI take
 ```
+
+`hockey report` writes a markdown file (var/reports/) because it's meant to run unattended from cron;
+`hockey web` shows the same things live in the browser.
 
 See [CLAUDE.md](CLAUDE.md) for data sources, fragile points, ID mapping and the phase plan.

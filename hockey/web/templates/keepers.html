@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Keeper plan</h1>
+<p class="sub">{{ horizon }}-season value, aged and discounted · regular keepers {{ p.chosen("regular") | length }}/{{ p.rules.regular }}
+  · franchise tags: {{ tags | join(", ") or "none needed" }} ({{ tags | length }}/{{ p.rules.tags }})
+  · minors {{ p.chosen("minors") | length }}/{{ p.rules.minors }} · total value {{ p.total | fmt(".0f") }}</p>
+<form class="card filters" method="get">
+  <label>Seasons of value to count
+    <select name="horizon" onchange="this.form.submit()">{% for h in range(1, 6) %}<option {{ "selected" if h == horizon }}>{{ h }}</option>{% endfor %}</select>
+  </label>
+</form>
+{% if p.warnings %}<div class="banner warn"><ul class="moves" style="margin:0">{% for w in p.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+<div class="card">
+  <table>
+    <thead><tr><th>Decision</th><th>Player</th><th>Pos</th><th class="num">Age</th><th class="num">Career GP</th><th>Clock</th><th class="num">Next season</th><th class="num">In {{ horizon }} yrs</th><th class="num">Keeper value</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for c in cands %}{% set e = c.entry %}
+      <tr>
+        <td>{% if c.choice == "regular+tag" %}<span class="pill good">Keep + tag</span>{% elif c.choice == "regular" %}<span class="pill good">Keep</span>{% elif c.choice == "minors" %}<span class="pill">Keep (minors)</span>{% else %}<span class="muted">Release</span>{% endif %}</td>
+        <td><a href="/player/{{ c.row.fantrax_id }}">{{ c.row.name }}</a></td><td>{{ c.row.positions }}</td>
+        <td class="num">{{ c.age | fmt(".0f") if c.age is not none else "?" }}</td>
+        <td class="num">{{ c.career_gp }}{% if (c.career_gp_end | round(0)) != c.career_gp %} → {{ c.career_gp_end | fmt(".0f") }}{% endif %}</td>
+        <td>{% if c.minors_eligible %}minors (clock off){% elif e.franchise_tag %}tagged, kept {{ e.times_kept }}x{% else %}kept {{ e.times_kept }}x{{ "" if c.in_yaml else " (assumed)" }}{% endif %}</td>
+        <td class="num">{{ c.yearly[0] | fmt(".0f") if c.yearly else "–" }}</td>
+        <td class="num">{{ c.yearly[-1] | fmt(".0f") if c.yearly else "–" }}</td>
+        <td class="num"><b>{{ c.value | fmt(".0f") if c.choice != "release" else "" }}</b></td>
+        <td class="wrap muted">{{ c.notes | join("; ") }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">Keeper value = projected points above the keeper line ({{ p.keeper_line | fmt(".0f") }} next-season FP, about what the draft
+    replaces a keeper with) for each season he can still be kept; minors use raw points. Clock data comes from data/keepers.yaml.</p>
+</div>
+{% endblock %}

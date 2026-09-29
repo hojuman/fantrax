@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+{% set r = lineup %}
+{% set hours = ((r.period.start - now).total_seconds() / 3600) | round(0) | int %}
+<h1>This week</h1>
+<p class="sub">
+  Period {{ r.period.number }}: {{ r.period.start | local("%a %b %d") }} → {{ r.period.end | local("%a %b %d") }}
+  · lock {{ r.period.start | local }} {% if hours > 0 %}(in {{ hours }} h){% else %}(locked){% endif %}
+  · {{ r.games_in_period }} NHL games
+  · data synced {{ last_sync | local if last_sync else "never" }}
+  <button class="secondary" onclick="hockey.sync(this)">Refresh data</button>
+  <span class="muted" id="sync-status"></span>
+</p>
+
+<div class="grid">
+  <section class="card">
+    <h2><a href="/lineup">Lineup</a></h2>
+    <div class="stat">
+      <div><b>{{ r.total | fmt }}</b><span>recommended FP</span></div>
+      <div><b>{{ r.current_total | fmt }}</b><span>current lineup</span></div>
+      <div><b class="{{ 'good' if r.gain > 0.05 }}">{{ r.gain | signed }}</b><span>gain</span></div>
+    </div>
+    {% if r.moves_in or r.moves_out %}
+      <b>Moves to make on Fantrax</b>
+      <ul class="moves">
+        {% for w in r.moves_in %}<li>Move <b class="good">{{ w.row.name }}</b> to Active ({{ w.slot }})</li>{% endfor %}
+        {% for w in r.moves_out %}<li>Move <b class="warn">{{ w.row.name }}</b> to Reserve</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="good">Your current lineup is already optimal.</p>
+    {% endif %}
+    {% if r.flags %}<ul class="flags">{% for f in r.flags %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2><a href="/intel">League</a></h2>
+    {% set me = league.me %}
+    <p>You rank <b>{{ me.overall_rank }}/{{ league.teams | length }}</b> by starting lineup ({{ me.lineup | fmt(".0f") }} ROS FP).<br>
+      Strong: {{ me.strengths | join(", ") or "nothing stands out" }} · weak: {{ me.weaknesses | join(", ") or "none" }}</p>
+    {% if league.opponent %}{% set o = league.opponent %}
+      <p>This week's opponent: <b>{{ o.name }}</b> (rank {{ o.overall_rank }}, {{ o.lineup | fmt(".0f") }} ROS FP).<br>
+        Strong at {{ o.strengths | join(", ") or "–" }}; weak at {{ o.weaknesses | join(", ") or "–" }}.</p>
+    {% endif %}
+    {% if swaps %}
+      <b>Trade ideas that help both lineups</b>
+      <ul class="moves">
+        {% for s in swaps %}
+          <li>{{ s.give.name }} → {{ s.team }} for <b>{{ s.get.name }}</b>
+            (you {{ s.my_gain | signed(0) }}, them {{ s.their_gain | signed(0) }}) ·
+            <a href="/trade?give={{ s.give.name | urlencode }}&get={{ s.get.name | urlencode }}">check it</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2><a href="/waivers">Pickups</a> <span class="muted">· {{ waivers.open_spots }} open spot{{ "" if waivers.open_spots == 1 else "s" }}</span></h2>
+    {% if waivers.pickups %}
+      <table>
+        <thead><tr><th>Pick up</th><th>Pos</th><th class="num">ROS FP</th><th>Drop</th><th class="num">Gain</th></tr></thead>
+        <tbody>
+        {% for o in waivers.pickups[:5] %}
+          <tr><td><a href="/player/{{ o.pickup.row.fantrax_id }}">{{ o.pickup.row.name }}</a>{% if o.pickup.row.owner == "W" %} <span class="pill warn">W</span>{% endif %}</td>
+            <td>{{ o.pickup.row.positions }}</td><td class="num">{{ o.pickup.ros | fmt(".0f") }}</td>
+            <td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td><td class="num good">{{ o.gain | signed }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No free agent improves your starting lineup.</p>
+      {% if waivers.depth %}<p>Depth for your open spot: {% for p in waivers.depth[:3] %}<a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a> ({{ p.row.positions }}, {{ p.ros | fmt(".0f") }}){{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
+    {% endif %}
+    {% if waivers.streamers %}
+      <h2 style="margin-top:14px">Streamers this week</h2>
+      <table>
+        <thead><tr><th>Stream</th><th>Pos</th><th class="num">Games</th><th>Drop</th><th class="num">Week gain</th></tr></thead>
+        <tbody>
+        {% for o in waivers.streamers[:5] %}
+          <tr><td>{{ o.pickup.row.name }}</td><td>{{ o.pickup.row.positions }}</td><td class="num">{{ o.pickup.avail.games }}</td>
+            <td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td><td class="num good">{{ o.gain | signed }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>AI take</h2>
+    {% if ai_hint %}
+      <p class="muted">{{ ai_hint }}</p>
+    {% else %}
+      <div id="take" class="md">{% if take %}<div data-md>{{ take[1] }}</div>{% else %}<p class="muted">Claude reads this week's report plus the news and says what it would do.</p>{% endif %}</div>
+      <p><button onclick="hockey.take(this)">{{ "Refresh AI take" if take else "Get AI take" }}</button>
+        <span class="muted" id="take-status">{% if take %}from {{ take[0] | local }}{% endif %}</span></p>
+    {% endif %}
+    {% if news and news.flags %}
+      <h2 style="margin-top:14px"><a href="/news">News flags</a> <span class="muted">· checked {{ news.checked_at | local }}</span></h2>
+      <ul class="moves">
+        {% for f in news.flags[:8] %}
+          <li><b>{{ f.player }}</b> <span class="pill {{ 'bad' if f.status == 'out' else 'warn' if f.status in ('day_to_day', 'role_down') else 'good' }}">{{ f.status }}</span> {{ f.note }}</li>
+        {% endfor %}
+      </ul>
+    {% elif not ai_hint %}
+      <p class="muted">No news checked yet. <a href="/news">Check the news</a>.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

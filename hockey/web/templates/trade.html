@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Trade analyzer</h1>
+<p class="sub">Both sides: change in each starting lineup (rest of season), keeper value, draft picks. Analysis only: this app never sends or accepts offers.</p>
+<form class="card" method="get">
+  <div class="filters">
+    <label>You give (comma-separated)
+      <input name="give" list="mine" value="{{ form.give }}" placeholder="e.g. Tim Stutzle" style="min-width:260px">
+    </label>
+    <label>You get (comma-separated)
+      <input name="get" list="others" value="{{ form["get"] }}" placeholder="e.g. Thatcher Demko" style="min-width:260px">
+    </label>
+  </div>
+  <div class="filters">
+    <label>Picks you give <input name="give_pick" value="{{ form.give_pick }}" placeholder="2027:2" style="width:120px"></label>
+    <label>Picks you get <input name="get_pick" value="{{ form.get_pick }}" placeholder="2027:1" style="width:120px"></label>
+    <label>Partner (only for picks-only)
+      <select name="partner"><option value=""></option>{% for t in teams %}<option {{ "selected" if t == form.partner }}>{{ t }}</option>{% endfor %}</select>
+    </label>
+    <label>Keeper weight <input type="number" name="keeper_weight" value="{{ form.keeper_weight }}" min="0" max="2" step="0.1" style="width:80px"></label>
+    <button type="submit">Evaluate</button>
+  </div>
+  <datalist id="mine">{% for n in mine %}<option value="{{ n }}">{% endfor %}</datalist>
+  <datalist id="others">{% for n in others %}<option value="{{ n }}">{% endfor %}</datalist>
+</form>
+
+{% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+
+{% if t %}{% set me = t.me %}{% set them = t.them %}
+<div class="banner {{ 'ok' if me.score > 0 and them.score > 0 else 'warn' if me.score > 0 else 'error' }}"><b>{{ t.verdict }}</b></div>
+<div class="grid">
+  <div class="card">
+    <h2>Impact</h2>
+    <table>
+      <thead><tr><th></th><th class="num">{{ me.team }}</th><th class="num">{{ them.team }}</th></tr></thead>
+      <tbody>
+        <tr><td>Starting lineup, rest of season</td>
+          <td class="num">{{ me.lineup_before | fmt(".0f") }} → {{ me.lineup_after | fmt(".0f") }} (<b>{{ me.lineup_change | signed(0) }}</b>)</td>
+          <td class="num">{{ them.lineup_before | fmt(".0f") }} → {{ them.lineup_after | fmt(".0f") }} (<b>{{ them.lineup_change | signed(0) }}</b>)</td></tr>
+        <tr><td>Keeper value, next season</td><td class="num">{{ me.keeper_change | signed(0) }}</td><td class="num">{{ them.keeper_change | signed(0) }}</td></tr>
+        {% if t.pick_values %}<tr><td>Draft pick value</td><td class="num">{{ me.pick_change | signed(0) }}</td><td class="num">{{ them.pick_change | signed(0) }}</td></tr>{% endif %}
+        {% if me.roster_overflow or them.roster_overflow %}<tr><td>Must drop to stay legal</td><td class="num">{{ me.roster_overflow }}</td><td class="num">{{ them.roster_overflow }}</td></tr>{% endif %}
+        <tr class="total"><td>Score (lineup + {{ t.keeper_weight }} × future)</td>
+          <td class="num {{ 'good' if me.score > 0 else 'bad' }}">{{ me.score | signed(0) }}</td>
+          <td class="num {{ 'good' if them.score > 0 else 'bad' }}">{{ them.score | signed(0) }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Players in the deal</h2>
+    <table>
+      <thead><tr><th>Player</th><th>Pos</th><th>Goes to</th><th class="num">ROS FP</th><th class="num">Over repl.</th><th class="num">Next season</th><th class="num">Keeper value</th></tr></thead>
+      <tbody>
+      {% for p in me.sends %}
+        <tr><td><a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a></td><td>{{ p.row.positions }}</td><td>{{ them.team }}</td><td class="num">{{ p.ros | fmt(".0f") }}</td>
+          <td class="num">{{ p.vor | signed(0) }}</td><td class="num">{{ p.next_season | fmt(".0f") }}</td><td class="num">{{ p.keeper_value | fmt(".0f") }}</td></tr>
+        {% if p.notes %}<tr><td colspan="7" class="wrap muted">↳ {{ p.notes | join("; ") }}</td></tr>{% endif %}
+      {% endfor %}
+      {% for p in me.receives %}
+        <tr><td><a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a></td><td>{{ p.row.positions }}</td><td>{{ me.team }}</td><td class="num">{{ p.ros | fmt(".0f") }}</td>
+          <td class="num">{{ p.vor | signed(0) }}</td><td class="num">{{ p.next_season | fmt(".0f") }}</td><td class="num">{{ p.keeper_value | fmt(".0f") }}</td></tr>
+        {% if p.notes %}<tr><td colspan="7" class="wrap muted">↳ {{ p.notes | join("; ") }}</td></tr>{% endif %}
+      {% endfor %}
+      {% for p in me.picks_sent %}<tr><td>{{ p }}</td><td>pick</td><td>{{ them.team }}</td><td colspan="3"></td><td class="num">{{ t.pick_values[p] | fmt(".0f") }}</td></tr>{% endfor %}
+      {% for p in me.picks_received %}<tr><td>{{ p }}</td><td>pick</td><td>{{ me.team }}</td><td colspan="3"></td><td class="num">{{ t.pick_values[p] | fmt(".0f") }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="card" style="margin-top:16px">
+  {% if t.notes %}<ul class="moves">{% for n in t.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+  <p class="muted">Replacement level (ROS FP at the first non-starter):
+    {% for pos, v in t.replacement.items() %}{{ pos }} {{ v | fmt(".0f") }}{{ " · " if not loop.last }}{% endfor %}
+    · keeper line: {{ t.keeper_line | fmt(".0f") }} next-season FP</p>
+</div>
+{% endif %}
+{% endblock %}

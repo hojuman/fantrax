@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Ask AI</h1>
+<p class="sub">Claude looks things up in the stats engine (lineups, pickups, trades, keepers, league standing), can search recent news,
+  and says which parts are numbers, news or judgment. It only advises; you make the moves.</p>
+{% if ai_hint %}
+  <div class="banner warn">{{ ai_hint }}</div>
+{% else %}
+  <div class="examples">
+    <button type="button" class="secondary">Who should I start this week, and is anyone on my roster hurt?</button>
+    <button type="button" class="secondary">Which free agent defenseman is worth a pickup?</button>
+    <button type="button" class="secondary">Who's the best trade partner for my weakest position?</button>
+    <button type="button" class="secondary">Which players should I keep next season?</button>
+  </div>
+  <div id="chat" class="chat"></div>
+  <form id="ask-form" class="ask-form">
+    <textarea placeholder="Ask about your lineup, pickups, trades or keepers… (Enter to send, Shift+Enter for a new line)"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button type="submit">Send</button>
+      <label class="muted" style="font-size:12px;white-space:nowrap"><input type="checkbox" id="web" checked> web search</label>
+      <button type="button" class="secondary" id="new-chat">New chat</button>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}

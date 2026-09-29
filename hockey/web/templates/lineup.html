@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+{% set hours = ((r.period.start - now).total_seconds() / 3600) | round(0) | int %}
+<h1>Lineup for period {{ r.period.number }}</h1>
+<p class="sub">{{ r.period.start | local("%a %b %d") }} → {{ r.period.end | local("%a %b %d") }} · lock {{ r.period.start | local }}
+  {% if hours > 0 %}(in {{ hours }} h){% else %}(already locked){% endif %} · {{ r.games_in_period }} NHL games</p>
+
+<form class="card" method="get">
+  <div class="filters" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+    <label class="muted" style="display:flex;flex-direction:column;font-size:12px">Period
+      <select name="period">
+        {% for p in periods %}<option value="{{ p.number }}" {{ "selected" if p.number == r.period.number }}>{{ p.number }}: {{ p.start | local("%b %d") }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="checks" style="margin:0"><input type="checkbox" name="ai" value="true" {{ "checked" if ai }}> Use AI news (bench players reported out)</label>
+    <button type="submit">Recompute</button>
+  </div>
+  <p class="muted" style="margin:10px 0 2px">Players who won't play this week (injured, scratched):</p>
+  <div class="checks">
+    {% for name in roster %}<label><input type="checkbox" name="out" value="{{ name }}" {{ "checked" if name in out }}> {{ name }}</label>{% endfor %}
+  </div>
+  {% if ai and news_outs %}
+    <p class="muted" style="margin:6px 0 2px">AI news says these are out. Tick to play them anyway:</p>
+    <div class="checks">{% for name in news_outs %}<label><input type="checkbox" name="play" value="{{ name }}"> {{ name }}</label>{% endfor %}</div>
+  {% endif %}
+  {% for name in play %}<input type="hidden" name="play" value="{{ name }}">{% endfor %}
+</form>
+
+{% if ai and not news %}<div class="banner warn">No AI news stored yet. <a href="/news">Check the news</a> first.</div>{% endif %}
+
+<div class="card">
+  <div class="stat">
+    <div><b>{{ r.total | fmt }}</b><span>recommended FP</span></div>
+    <div><b>{{ r.current_total | fmt }}</b><span>current lineup</span></div>
+    <div><b class="{{ 'good' if r.gain > 0.05 }}">{{ r.gain | signed }}</b><span>gain</span></div>
+  </div>
+  {% if r.moves_in or r.moves_out %}
+    <b>Moves to make on Fantrax</b> <span class="muted">(this app never makes them for you)</span>
+    <ul class="moves">
+      {% for w in r.moves_in %}<li>Move <b class="good">{{ w.row.name }}</b> to Active ({{ w.slot }})</li>{% endfor %}
+      {% for w in r.moves_out %}<li>Move <b class="warn">{{ w.row.name }}</b> to Reserve</li>{% endfor %}
+    </ul>
+  {% else %}<p class="good">Your current lineup is already optimal.</p>{% endif %}
+  {% if r.flags %}<ul class="flags">{% for f in r.flags %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Recommended actives</h2>
+  <table>
+    <thead><tr><th>Slot</th><th>Player</th><th>Pos</th><th>NHL</th><th class="num">Games</th><th class="num">FP/GP</th><th class="num">Exp FP</th><th>Change</th></tr></thead>
+    <tbody>
+    {% for w in r.starters %}
+      <tr><td>{{ w.slot }}</td><td><a href="/player/{{ w.row.fantrax_id }}">{{ w.row.name }}</a></td><td>{{ w.row.positions }}</td><td>{{ w.row.nhl_team or "" }}</td>
+        <td class="num">{{ games_cell(w) }}</td><td class="num">{{ w.fp_per_gp | fmt(".2f") }}</td><td class="num">{{ w.value | fmt }}</td>
+        <td>{% if w.status == "ACTIVE" %}<span class="muted">stays</span>{% else %}<span class="good">↑ from {{ (w.status or "bench") | title }}</span>{% endif %}</td></tr>
+    {% endfor %}
+    {% for pos, n in r.empty.items() %}{% for _ in range(n) %}<tr><td>{{ pos }}</td><td class="bad">(empty)</td><td colspan="6"></td></tr>{% endfor %}{% endfor %}
+    <tr class="total"><td></td><td>Total</td><td colspan="4"></td><td class="num">{{ r.total | fmt }}</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% if r.bench or r.others %}
+<div class="card">
+  <h2>Bench, IR and Minors</h2>
+  <table>
+    <thead><tr><th>Status</th><th>Player</th><th>Pos</th><th>NHL</th><th class="num">Games</th><th class="num">Exp FP</th><th>Why not starting</th></tr></thead>
+    <tbody>
+    {% for w in r.bench + r.others %}
+      <tr><td>{{ (w.status or "?") | replace("_", " ") | title }}</td><td><a href="/player/{{ w.row.fantrax_id }}">{{ w.row.name }}</a></td><td>{{ w.row.positions }}</td>
+        <td>{{ w.row.nhl_team or "" }}</td><td class="num">{{ games_cell(w) }}</td><td class="num">{{ w.value | fmt }}</td>
+        <td class="wrap {{ 'bad' if w.avail.out }}">{{ why_not_starting(w) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if news_flags %}
+<div class="card">
+  <h2>AI news for your roster <span class="muted">· checked {{ news.checked_at | local }} · judgment from news, not the engine</span></h2>
+  {% include "_news_table.html" %}
+</div>
+{% endif %}
+{% endblock %}

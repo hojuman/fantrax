@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+{% set me = league.me %}
+<h1>League</h1>
+<p class="sub">Starting-lineup strength (rest of season) and rank at each slot (1 = best).
+  You rank <b>{{ me.overall_rank }}/{{ n }}</b>.
+  {% if league.opponent %}{% set o = league.opponent %}Opponent{% if period %} in period {{ period.number }}{% endif %}: <b>{{ o.name }}</b>
+    ({{ o.lineup | fmt(".0f") }} vs your {{ me.lineup | fmt(".0f") }} ROS FP).{% endif %}</p>
+<div class="card">
+  <table>
+    <thead><tr><th class="num">#</th><th>Team</th><th class="num">Lineup FP</th>{% for s in slots %}<th class="num">{{ s }}</th>{% endfor %}<th>Strengths</th><th>Weaknesses</th></tr></thead>
+    <tbody>
+    {% for p in league.teams %}
+      <tr class="{{ 'me' if p.team_id == me.team_id }}"><td class="num">{{ p.overall_rank }}</td>
+        <td><a href="/roster?team={{ p.name | urlencode }}">{{ p.name }}</a>{% if league.opponent and p.team_id == league.opponent.team_id %} <span class="pill warn">opponent</span>{% endif %}</td>
+        <td class="num">{{ p.lineup | fmt(".0f") }}</td>
+        {% for s in slots %}<td class="num {{ rank_class(p.ranks[s], n) }}">{{ p.ranks[s] }}</td>{% endfor %}
+        <td>{{ p.strengths | join(", ") }}</td>
+        <td>{{ p.weaknesses | join(", ") }}{% if p.empty %} <span class="bad">empty: {% for pos, k in p.empty.items() %}{{ k }} {{ pos }}{{ ", " if not loop.last }}{% endfor %}</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h2>Trade partners: 1-for-1 swaps that improve BOTH starting lineups</h2>
+  {% if league.partners %}
+  <table>
+    <thead><tr><th>Team</th><th>You give</th><th>You get</th><th class="num">Your gain</th><th class="num">Their gain</th><th>Their needs</th><th></th></tr></thead>
+    <tbody>
+    {% for team, swaps in league.partners %}{% for sw in swaps %}
+      <tr><td>{{ team.name if loop.first else "" }}</td>
+        <td>{{ sw.give.name }} <span class="muted">({{ sw.give.eligible | join(",") }})</span></td>
+        <td>{{ sw.get.name }} <span class="muted">({{ sw.get.eligible | join(",") }})</span></td>
+        <td class="num good">{{ sw.my_gain | signed(0) }}</td><td class="num">{{ sw.their_gain | signed(0) }}</td>
+        <td>{{ team.weaknesses | join(", ") if loop.first else "" }}</td>
+        <td><a href="/trade?give={{ sw.give.name | urlencode }}&get={{ sw.get.name | urlencode }}">analyze</a></td></tr>
+    {% endfor %}{% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No 1-for-1 swap helps both lineups right now.</p>{% endif %}
+  <p class="muted">Gains are rest-of-season starting-lineup points. "Analyze" adds keeper value and roster space.</p>
+</div>
+{% endblock %}

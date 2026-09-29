@@ -11,10 +11,11 @@ from typing import Any
 SCHEMA = Path(__file__).with_name("schema.sql")
 
 
-def connect(path: Path | str) -> sqlite3.Connection:
+def connect(path: Path | str, *, check_same_thread: bool = True) -> sqlite3.Connection:
+    """``check_same_thread=False`` only for the web UI, which serializes access with a lock."""
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode=WAL")

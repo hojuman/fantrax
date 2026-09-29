@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="banner error">{{ error }}</div>
+<div class="card">
+  <p>Most often this means the data hasn't been synced yet, or the value in the address bar doesn't
+  match anything (a period number, a team or a player name).</p>
+  <button onclick="hockey.sync(this)">Refresh data now</button>
+  <span class="muted" id="sync-status"></span>
+</div>
+{% endblock %}

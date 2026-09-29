@@ -40,6 +40,7 @@ uv run hockey report [--sync] [--out NAME ...] [--out-dir DIR]  # daily markdown
 uv run hockey ask ["QUESTION"] [--no-web] [--model M] [--effort E]   # AI assistant (no question = chat)
 uv run hockey news [--refresh] [--mine]       # AI news flags: injuries, lines, goalie starts (6 h cache)
 uv run hockey lineup --ai [--play NAME ...]   # also: waivers --ai, report --ai (AI news + "AI take")
+uv run hockey web [--port 8765] [--no-open]  # browser UI on 127.0.0.1 (uv sync --extra web)
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -185,6 +186,27 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
 - **Cost:** a few cents per `ask`/`news` on Opus; a cheaper `ai.model` works. Tests use a scripted
   fake SDK (`tests/test_ai.py`) and never call the API.
 
+## Browser UI (`hockey web`, `hockey/web/`)
+- **Local only:** FastAPI + Jinja2 served by uvicorn on **127.0.0.1** (`web.app.HOST`, pinned by a test).
+  Optional extra: `uv sync --extra web`. No CDN and no JS framework: `static/style.css` (light/dark)
+  plus `static/app.js` (action buttons, a tiny markdown renderer, the streaming chat).
+- **Same engine:** pages call `LeagueContext` (`lineup`, `waivers`, `trade`, `keeper_plan`, `intel`) and
+  `Valuer`, and render the same report dataclasses as the Rich views. There's no math in `web/`.
+- **State:** one SQLite connection (`db.connect(..., check_same_thread=False)`) shared across threads
+  behind `Hub.lock`. The `LeagueContext`/`Valuer` is cached until `meta.updated_at` changes (a sync;
+  `ai_news` excluded).
+- **Pages:** Dashboard, Lineup (out checkboxes, AI-news toggle + play overrides), Waivers (protect
+  checkboxes), Rankings, Player, Rosters, Trade (datalist autocomplete), Keepers, League (trade ideas
+  link to a prefilled Trade), News, Ask. Views are GET with query params (bookmarkable).
+- **Actions** (POST, JSON): `/api/sync` (the same guarded GET-only sync as `hockey sync`), `/api/news`,
+  `/api/take`, `/api/ask`. `/api/ask` streams server-sent events: `session`, `text`, `tool`, then
+  `done` (sources, credit, tokens) or `error`. Chat history is kept in memory per browser tab, and a
+  failed turn is dropped.
+- **Errors:** `ContextError`/`FetchError`/`AiError` render as a banner, never a 500. Every page footer
+  says "Recommendations only" and shows the MoneyPuck credit when the data used it.
+- **Tests:** `tests/test_web.py` runs in-process via `TestClient`. pytest runs with
+  `--allow-unix-socket` for the asyncio loop's socketpair; network sockets stay blocked.
+
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
    (10 teams, pool 8,747, 8 skater + 4 goalie scoring codes), getTeamRosters (248 rows), and
@@ -259,8 +281,8 @@ games share with 20 team games of prior weight, rookie default = 30th-percentile
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
 `lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
 `keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) · `intel/league.py` · `report/daily.py` ·
-`context.py` (LeagueContext: shared report setup for the CLI and AI tools) · `ai/` (client, prompts,
-tools, agent, news, take) · `sync.py` orchestration · `probe.py` ·
+`context.py` (LeagueContext: shared report setup for the CLI, AI tools and web UI) · `ai/` (client,
+prompts, tools, agent, news, take) · `web/` (app, templates, static) · `sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
 gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
@@ -280,3 +302,4 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
 7. ✅ League intel (`hockey intel`) + daily markdown report (`hockey report`).
 8. ✅ Optional AI layer: `hockey ask` (Claude + read-only engine tools + news search), `hockey news`
    (structured injury/role flags), `--ai` on lineup / waivers / report.
+9. ✅ Local browser UI (`hockey web`): every view as a page, plus AI chat, news and data refresh.

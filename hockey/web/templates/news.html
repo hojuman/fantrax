@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>News</h1>
+<p class="sub">Claude searches recent news for your roster and the top free agents: injuries, line and power-play changes, goalie starts.
+  These are judgment from news, not the engine's numbers. Your roster is in bold.</p>
+{% if ai_hint %}
+  <div class="banner warn">{{ ai_hint }}</div>
+{% else %}
+  <p><button onclick="hockey.news(this)">Check the news now</button> <span class="muted" id="news-status">Takes about a minute; a few cents of API use.</span></p>
+{% endif %}
+{% if news %}
+  <div class="card">
+    <h2>{{ news.flags | length }} flag{{ "" if news.flags | length == 1 else "s" }} <span class="muted">· checked {{ news.checked_at | local }}{% if news.searches %} · {{ news.searches }} searches{% endif %}</span></h2>
+    {% set news_flags = news.flags %}
+    {% if news_flags %}{% include "_news_table.html" %}{% else %}<p class="muted">Nothing notable found for the players checked.</p>{% endif %}
+    <p class="muted">Use them on the <a href="/lineup?ai=true">lineup page</a> (players reported out get benched; you can override).</p>
+  </div>
+{% else %}
+  <p class="muted">No news checked yet.</p>
+{% endif %}
+{% endblock %}

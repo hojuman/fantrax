@@ -1,0 +1,14 @@
+<table>
+  <thead><tr><th>Player</th><th>Status</th><th>Note</th><th>Source</th><th>As of</th></tr></thead>
+  <tbody>
+  {% for f in news_flags %}
+    <tr {% if mine is defined and f.player in mine %}class="me"{% endif %}>
+      <td>{{ f.player }}</td>
+      <td><span class="pill {{ 'bad' if f.status == 'out' else 'warn' if f.status in ('day_to_day', 'role_down') else 'good' if f.status in ('role_up', 'starting_goalie') else '' }}">{{ f.status | replace("_", " ") }}</span></td>
+      <td class="wrap">{{ f.note }}</td>
+      <td>{% if f.source_url %}<a href="{{ f.source_url }}" target="_blank" rel="noopener">link</a>{% endif %}</td>
+      <td>{{ f.as_of or "" }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

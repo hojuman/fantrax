@@ -761,6 +761,21 @@ def news(
     )
 
 
+@app.command()
+def web(
+    port: int = typer.Option(8765, help="Port on 127.0.0.1."),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the page in your browser."),
+) -> None:
+    """Browser UI on http://127.0.0.1:PORT (this machine only). Same engine as the CLI; Ctrl+C to stop."""
+    try:
+        from hockey.web.app import serve
+    except ImportError as e:
+        console.print("[yellow]Browser UI off: install it with `uv sync --extra web`[/]")
+        raise typer.Exit(0) from e
+    console.print(f"Hockey assistant running at [bold]http://127.0.0.1:{port}/[/] (Ctrl+C to stop)")
+    serve(port, open_browser)
+
+
 @app.command("validate-scoring")
 def validate_scoring(
     path: Path = typer.Argument(

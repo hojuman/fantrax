@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title ~ " · " if title }}Hockey assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">🏒 {{ team }}<small>hockey assistant</small></div>
+  <nav>
+    {% for href, label in NAV %}
+      <a href="{{ href }}" class="{{ 'on' if (path == href or (href != '/' and path.startswith(href))) }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+<footer>
+  Recommendations only: make any moves yourself on Fantrax. This app never changes anything there.
+  {% if credit %}<br>{{ CREDIT }}{% endif %}
+</footer>
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

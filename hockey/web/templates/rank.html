@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Rankings</h1>
+<p class="sub">Under this league's scoring. Click a player for everything behind his projection.</p>
+<form class="card filters" method="get">
+  <label>Position
+    <select name="pos"><option value="">All</option>{% for p in positions %}<option {{ "selected" if p == pos }}>{{ p }}</option>{% endfor %}</select>
+  </label>
+  <label>Owner
+    <select name="owner"><option value="">Anyone</option>{% for t in teams %}<option {{ "selected" if t == owner }}>{{ t }}</option>{% endfor %}</select>
+  </label>
+  <label>Sort
+    <select name="sort"><option value="ros" {{ "selected" if sort == "ros" }}>Rest-of-season FP</option><option value="fp" {{ "selected" if sort == "fp" }}>FP per game</option></select>
+  </label>
+  <label>Rows <input type="number" name="limit" value="{{ limit }}" min="10" max="500" step="10" style="width:80px"></label>
+  <label class="checks" style="margin:0;flex-direction:row"><input type="checkbox" name="available" value="true" {{ "checked" if available }}> Free agents only</label>
+  <button type="submit">Show</button>
+</form>
+<div class="card">
+  <table>
+    <thead><tr><th class="num">#</th><th>Player</th><th>Pos</th><th>NHL</th><th>Owner</th><th class="num">FP/GP</th><th class="num">ROS GP</th><th class="num">ROS FP</th><th>Top components (FP/GP)</th><th>Basis</th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set p = r.projection %}
+      <tr><td class="num">{{ loop.index }}</td><td><a href="/player/{{ r.fantrax_id }}">{{ r.name }}</a></td><td>{{ r.positions }}</td><td>{{ r.nhl_team or "" }}</td>
+        <td>{% if r.owner in ("FA", "W") %}<span class="pill good">{{ r.owner }}</span>{% else %}{{ r.owner or "" }}{% endif %}</td>
+        <td class="num">{{ p.fp_per_gp | fmt(".2f") }}</td><td class="num">{{ p.ros_gp | fmt(".0f") }}</td><td class="num"><b>{{ p.ros_fp | fmt(".0f") }}</b></td>
+        <td class="muted">{{ components(r) }}</td><td class="muted">{{ basis(p) }}</td></tr>
+    {% else %}
+      <tr><td colspan="10" class="muted">No players match.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

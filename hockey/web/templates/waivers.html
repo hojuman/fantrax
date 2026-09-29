@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Waivers</h1>
+<p class="sub">{{ r.open_spots }} open roster spot{{ "" if r.open_spots == 1 else "s" }} · weekly numbers for period {{ r.period.number }}
+  ({{ r.period.start | local("%a %b %d") }} → {{ r.period.end | local("%a %b %d") }}) · gain = how much your best starting lineup improves</p>
+
+<form class="card" method="get">
+  <div class="filters">
+    <label>Position
+      <select name="pos"><option value="">All</option>{% for p in ["C", "LW", "RW", "D", "G"] %}<option {{ "selected" if p == pos }}>{{ p }}</option>{% endfor %}</select>
+    </label>
+    <label>Period
+      <select name="period">{% for p in periods %}<option value="{{ p.number }}" {{ "selected" if p.number == r.period.number }}>{{ p.number }}: {{ p.start | local("%b %d") }}</option>{% endfor %}</select>
+    </label>
+    <label>Streamers: most ROS FP a drop may cost
+      <input type="number" name="max_ros_cost" value="{{ max_ros_cost | round(0) | int }}" min="0" step="5" style="width:90px">
+    </label>
+    <button type="submit">Update</button>
+  </div>
+  <p class="muted" style="margin:10px 0 2px">Never suggest dropping:</p>
+  <div class="checks">{% for name in mine %}<label><input type="checkbox" name="protect" value="{{ name }}" {{ "checked" if name in protect }}> {{ name }}</label>{% endfor %}</div>
+</form>
+
+<div class="card">
+  <h2>Best pickups for the rest of the season</h2>
+  {% if r.pickups %}
+  <table>
+    <thead><tr><th>Pick up</th><th>Pos</th><th>NHL</th><th class="num">FP/GP</th><th class="num">ROS FP</th><th>Drop</th><th class="num">ROS gain</th><th class="num">Games wk</th></tr></thead>
+    <tbody>
+    {% for o in r.pickups %}{% set p = o.pickup %}
+      <tr><td><a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a>{% if p.row.owner == "W" %} <span class="pill warn" title="On waivers: a claim, not an instant add">W</span>{% endif %}</td>
+        <td>{{ p.row.positions }}</td><td>{{ p.row.nhl_team or "" }}</td><td class="num">{{ p.row.projection.fp_per_gp | fmt(".2f") }}</td>
+        <td class="num">{{ p.ros | fmt(".0f") }}</td><td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td>
+        <td class="num good"><b>{{ o.gain | signed }}</b></td><td class="num">{{ p.avail.games }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No free agent improves your starting lineup.</p>{% endif %}
+</div>
+
+{% if r.depth %}
+<div class="card">
+  <h2>Best use of your open spot: depth for injuries</h2>
+  <table>
+    <thead><tr><th>Add</th><th>Pos</th><th>NHL</th><th class="num">FP/GP</th><th class="num">ROS FP</th><th class="num">Games wk</th></tr></thead>
+    <tbody>
+    {% for p in r.depth %}
+      <tr><td><a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a>{% if p.row.owner == "W" %} <span class="pill warn">W</span>{% endif %}</td><td>{{ p.row.positions }}</td><td>{{ p.row.nhl_team or "" }}</td>
+        <td class="num">{{ p.row.projection.fp_per_gp | fmt(".2f") }}</td><td class="num">{{ p.ros | fmt(".0f") }}</td><td class="num">{{ p.avail.games }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="grid">
+<div class="card">
+  <h2>By position: your weakest starter vs the best available</h2>
+  <table>
+    <thead><tr><th>Slot</th><th>Your weakest</th><th class="num">ROS FP</th><th>Best available</th><th class="num">ROS FP</th><th class="num">Gain</th></tr></thead>
+    <tbody>
+    {% for row in r.by_position %}
+      <tr><td>{{ row.pos }}</td>
+        <td>{% if row.weakest %}{{ row.weakest.row.name }}{% else %}<span class="bad">(empty slot)</span>{% endif %}</td>
+        <td class="num">{{ row.weakest.ros | fmt(".0f") if row.weakest else "–" }}</td>
+        <td>{% if row.best %}<a href="/player/{{ row.best.pickup.row.fantrax_id }}">{{ row.best.pickup.row.name }}</a>{% else %}<span class="muted">nobody better</span>{% endif %}</td>
+        <td class="num">{{ row.best.pickup.ros | fmt(".0f") if row.best else "" }}</td>
+        <td class="num">{{ row.best.gain | signed if row.best else "" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Streamers for period {{ r.period.number }}</h2>
+  {% if r.streamers %}
+  <table>
+    <thead><tr><th>Stream</th><th>Pos</th><th class="num">Games</th><th class="num">Exp FP</th><th>Drop</th><th class="num">Week gain</th><th class="num">ROS change</th></tr></thead>
+    <tbody>
+    {% for o in r.streamers %}{% set p = o.pickup %}
+      <tr><td>{{ p.row.name }}{% if p.row.owner == "W" %} <span class="pill warn">W</span>{% endif %}</td><td>{{ p.row.positions }}</td><td class="num">{{ games_cell(p) }}</td>
+        <td class="num">{{ p.week | fmt }}</td><td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td>
+        <td class="num good"><b>{{ o.gain | signed }}</b></td><td class="num">{{ o.ros_change | signed(0) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No streamer beats your lineup this week.</p>{% endif %}
+</div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  {% if r.density %}<p><b>Games per team this period:</b> {% for n, teams in r.density.items() %}<b>{{ n }}</b>: {{ teams | join(", ") }}{{ " · " if not loop.last }}{% endfor %}</p>{% endif %}
+  {% if r.notes %}<ul class="moves">{% for n in r.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endblock %}

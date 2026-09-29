@@ -21,13 +21,21 @@ hockey = "hockey.cli:app"
 ai = [
     "anthropic>=1.9.0",
 ]
+web = [
+    "fastapi>=0.142.0",
+    "jinja2>=3.1.6",
+    "uvicorn>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
-    "anthropic>=1.9.0",  # so the AI layer's tests run (they never call the API)
+    "anthropic>=1.9.0", # so the AI layer's tests run (they never call the API)
+    "fastapi>=0.142.0",
+    "jinja2>=3.1.6",
     "pytest>=8.0",
     "pytest-socket>=0.7",
     "ruff>=0.6",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
@@ -40,7 +48,7 @@ packages = ["hockey"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Tests must never touch the network: everything runs off fixtures.
-addopts = "--disable-socket"
+addopts = "--disable-socket --allow-unix-socket"  # unix: the asyncio loop in the web tests
 
 [tool.ruff]
 line-length = 110
