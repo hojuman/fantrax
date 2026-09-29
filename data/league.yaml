@@ -53,3 +53,15 @@ projection:
   season_weights: [5, 4, 3]    # most recent completed season first
   regression_games: {F: 25, D: 25, G: 20}
   gp_cap: {F: 82, D: 82, G: 65}
+
+# Optional AI layer (hockey/ai/): Claude reads the engine's numbers through read-only tools and adds
+# news and judgment. Needs `uv sync --extra ai` and ANTHROPIC_API_KEY in .env. Nothing here is secret.
+ai:
+  model: claude-opus-5-5       # a cheaper model works too, e.g. claude-sonnet-5-5
+  effort: medium               # low / medium / high / xhigh / max: deeper thinking costs more
+  max_tokens: 16000
+  fallbacks: true              # if the model declines, the API retries on its recommended fallback model
+  web_search: true             # news via Anthropic's server-side web search (fantrax.com is always excluded)
+  news_domains: [nhl.com, dailyfaceoff.com, sportsnet.ca, tsn.ca, espn.com]
+  max_searches: 8              # web searches per request
+  news_ttl_hours: 6            # `--ai` reuses stored news flags this long before searching again

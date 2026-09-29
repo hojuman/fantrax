@@ -24,10 +24,21 @@ uv run hockey ids --unmatched            # rostered players without an NHL id
 uv run pytest                            # offline tests
 ```
 
+Optional AI layer (Claude reads the engine's numbers, adds news and judgment; still read-only):
+
+```bash
+uv sync --extra ai          # then add ANTHROPIC_API_KEY=... to .env
+uv run hockey ask "Should I start Demko or Vasilevskiy this week?"
+uv run hockey ask           # back-and-forth chat
+uv run hockey news          # injuries, line/PP changes, goalie starts for your roster + top free agents
+uv run hockey lineup --ai   # benches players the news says are out (override with --play NAME)
+uv run hockey report --ai   # adds an "AI take" section
+```
+
 Daily report on a schedule (macOS/Linux cron, 8:15 every morning):
 
 ```
-15 8 * * * cd /path/to/fantrax && uv run hockey report --sync
+15 8 * * * cd /path/to/fantrax && uv run hockey report --sync   # add --ai for the AI take
 ```
 
 See [CLAUDE.md](CLAUDE.md) for data sources, fragile points, ID mapping and the phase plan.

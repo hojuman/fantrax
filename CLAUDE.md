@@ -11,8 +11,12 @@ League facts (10 teams, H2H points, weekly Monday lock, 2C/2LW/2RW/4D/2G, keeper
 - **No cookies / no Fantrax web-app backend.** Fantrax's ToS prohibits crawling/scraping. We use only
   the published keyless `fxea` API plus CSVs the user exports by hand. `fantraxapi` (PyPI) and
   `/fxpa/req` were evaluated and **rejected** for this reason; don't add them back.
-- **Secrets** go in `.env` (gitignored). Currently only non-secret config lives there (league id,
-  team name). `var/` (SQLite db, probe output) is gitignored too.
+- **Secrets** go in `.env` (gitignored): the optional `ANTHROPIC_API_KEY`, plus non-secret config
+  (league id, team name). `var/` (SQLite db, probe output) is gitignored too.
+- **The AI layer only reads.** Its tools wrap the report builders; none writes, and there is no tool
+  for acting on Fantrax. The Anthropic SDK is the one outbound path outside `http.py` (POSTs to
+  `api.anthropic.com` only). `ANTHROPIC_API_KEY` lives in `.env`, never in the repo. Web search
+  (server-side, run by Anthropic) is limited to `ai.news_domains` and never includes fantrax.com.
 - **Tests never hit the network** (`pytest-socket`, `--disable-socket` in pyproject). Use fixtures.
 - Don't commit anything from the league rules that identifies people (e.g. commissioner email).
 
@@ -33,6 +37,9 @@ uv run hockey trade "GIVE, ..." "GET, ..." [--give-pick 2027:2] [--get-pick 2027
 uv run hockey keepers [--horizon 3] [--keepers-file PATH]  # multi-year keeper value + best 10+5 with tags
 uv run hockey intel                            # every team's slot ranks, this week's opponent, trade partners
 uv run hockey report [--sync] [--out NAME ...] [--out-dir DIR]  # daily markdown -> var/reports/YYYY-MM-DD.md
+uv run hockey ask ["QUESTION"] [--no-web] [--model M] [--effort E]   # AI assistant (no question = chat)
+uv run hockey news [--refresh] [--mine]       # AI news flags: injuries, lines, goalie starts (6 h cache)
+uv run hockey lineup --ai [--play NAME ...]   # also: waivers --ai, report --ai (AI news + "AI take")
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -47,6 +54,7 @@ uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same
 | NHL stats REST, recent form | same reports with `and gameDate>="…" and gameDate<="…"` for last 14/30 days (in season only) | none | 6h |
 | NHL web API | `api-web.nhle.com/v1/roster/{TEAM}/{season}` (32 calls; `/current` is a 307 to this), `/v1/standings/{date}` (team GP, in season), `/v1/schedule/{date}` (7-day `gameWeek`; `gameType` 2 = regular season, `startTimeUTC`, `homeTeam/awayTeam.abbrev`) | none | 24h / 6h / 12h |
 | NHL player landing | `api-web.nhle.com/v1/player/{id}/landing`: `careerTotals.regularSeason.gamesPlayed` (absent = 0 GP), `birthDate`. Fetched per player by `hockey keepers` (your roster only) | none | 24h |
+| Anthropic API (optional AI layer) | `api.anthropic.com/v1/messages` via the `anthropic` SDK (streaming; beta `server-side-fallback-2026-07-01`); server-side `web_search_20260209` limited to `ai.news_domains` | `ANTHROPIC_API_KEY` in `.env` | news flags 6h (`meta.ai_news`) |
 | MoneyPuck | `moneypuck.com/moneypuck/playerData/seasonSummary/{startYear}/regular/{skaters,goalies}.csv`; `playerId` = NHL id; rows per `situation` (we read `all` + `5on4`); `icetime` in seconds. Columns read: skaters `I_F_xGoals, I_F_goals, I_F_shotsOnGoal, games_played, icetime`; goalies `xGoals, goals, ongoal`. Column names are unverified until `hockey probe` runs; the parser fails loudly with the real header | none | past ∞, current 24h (404 before opening night is fine) |
 
 League scoring (Fantrax, verified 2026-09-29), H2H points. Skaters: G 2, A 1.5, +/- 0.25, PPP 0.5,
@@ -149,6 +157,30 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
   `report/daily.py`; no extra data calls). `--sync` refreshes first. The output is in `var/` (gitignored).
   Schedule it yourself (cron / launchd), e.g. `15 8 * * * cd REPO && uv run hockey report --sync`.
 
+## AI layer (Phase 8, `hockey/ai/`)
+- **Optional:** `uv sync --extra ai` + `ANTHROPIC_API_KEY` in `.env`. Without either, `ask`/`news`
+  print one line and exit 0; `--ai` on lineup/waivers/report prints a note and carries on with the numbers.
+- **Design:** the engine stays the source of the numbers. Claude reads them through read-only tools
+  (`ai/tools.py`, wrapping `context.LeagueContext`: roster, player, rank, lineup DP, waivers, trade,
+  keepers, intel, schedule; the list is pinned by a test). It adds news (web search) and judgment, and
+  must label which is which. The system prompt (`ai/prompts.py`) holds only stable league facts, so it
+  caches.
+- **Loop** (`ai/agent.py`): a manual tool loop (not the beta tool runner), so `pause_turn` resumes by
+  resending the history. Refusal → `AiError`; capped at `ai.max_turns` rounds. `ai/client.py` holds
+  model / effort / fallbacks from the `ai:` block in `data/league.yaml` (default `claude-opus-5-5`,
+  adaptive thinking, effort medium).
+- **News** (`ai/news.py`): searches for your roster and the top 15 free agents, then a structured-output
+  call (Pydantic `NewsFlags`) turns the notes into flags: out / day_to_day / role_up / role_down /
+  starting_goalie / other, with source + date. Stored in `meta.ai_news`, reused for `ai.news_ttl_hours`.
+  `lineup --ai` benches `out` players (reason "out per AI news: …"; `--play NAME` overrides). Other
+  flags are shown next to the players and never folded into the numbers.
+- **Report** (`report --ai`): the engine report is rendered first, then Claude writes 3–5 "AI take"
+  bullets from it plus the news (`ai/take.py`). This section comes first in the markdown.
+- **Credit and framing:** answers built on MoneyPuck-based projections print `CREDIT` (the executor
+  tracks it), and every AI output ends with "Recommendations only".
+- **Cost:** a few cents per `ask`/`news` on Opus; a cheaper `ai.model` works. Tests use a scripted
+  fake SDK (`tests/test_ai.py`) and never call the API.
+
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
    (10 teams, pool 8,747, 8 skater + 4 goalie scoring codes), getTeamRosters (248 rows), and
@@ -209,7 +241,7 @@ There is **no cookie or token to refresh, by design** (see Hard rules). If Fantr
 3. Options that need the user's decision, not a code change: the commissioner makes the league
    public, or the user explicitly revisits the no-cookie decision.
 Container note: cloud sessions need `www.fantrax.com`, `api.nhle.com`, `api-web.nhle.com`,
-`moneypuck.com` in the environment's allowed network hosts.
+`moneypuck.com` in the environment's allowed network hosts (plus `api.anthropic.com` for the AI layer).
 
 ## Code map
 `hockey/http.py` guard+cache · `sources/` fantrax_fxea, fantrax_csv, nhl, teams · `idmap/` ·
@@ -223,7 +255,8 @@ games share with 20 team games of prior weight, rookie default = 30th-percentile
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
 `lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
 `keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) · `intel/league.py` · `report/daily.py` ·
-`sync.py` orchestration · `probe.py` ·
+`context.py` (LeagueContext: shared report setup for the CLI and AI tools) · `ai/` (client, prompts,
+tools, agent, news, take) · `sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
 gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
@@ -241,3 +274,5 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
 6. ✅ Keepers (`hockey keepers`): age curve, keeper clock + tag rules from `data/keepers.yaml`,
    165-GP minors rule from career GP at keeper time, exact best 10 + 5 with tag assignment.
 7. ✅ League intel (`hockey intel`) + daily markdown report (`hockey report`).
+8. ✅ Optional AI layer: `hockey ask` (Claude + read-only engine tools + news search), `hockey news`
+   (structured injury/role flags), `--ai` on lineup / waivers / report.

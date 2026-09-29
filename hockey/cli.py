@@ -301,45 +301,41 @@ def player(name: str = typer.Argument(..., help="Player name (or part of it), or
         console.print(part)
 
 
+def _fail(e: Exception, code: int = 1):
+    console.print(f"[red]{e}[/]")
+    raise typer.Exit(code) from e
+
+
+def _context(team: str | None = None, refresh: bool = False):
+    """Settings, db, http and my team as a LeagueContext; exits with a message if the team is unknown."""
+    from hockey.context import ContextError, LeagueContext, my_team
+
+    settings, conn, http = _open(refresh)
+    try:
+        return LeagueContext(settings, conn, http, my_team(conn, settings, team))
+    except ContextError as e:
+        _fail(e)
+
+
 def _team_period_games(team: str | None, period: int | None, current: bool = False):
     """Shared by lineup/waivers: my team row, the chosen roster period, and its NHL games."""
     from datetime import datetime
 
-    from hockey.db import get_meta
-    from hockey.lineup.periods import current_period, next_period, parse_periods
-    from hockey.sources.nhl import NhlClient
+    from hockey.context import ContextError, choose_period
 
-    settings, conn, http = _open()
-    if team:
-        settings.my_team_name, settings.my_team_short = team, team
-    row = find_my_team(conn, settings)
-    if row is None:
-        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
-        raise typer.Exit(1)
-    periods = parse_periods(get_meta(conn, "roster_periods") or [])
-    if not periods:
-        console.print(
-            "[red]No roster periods stored.[/] Run `hockey sync` (they come from Fantrax getLeagueInfo)."
-        )
-        raise typer.Exit(1)
+    ctx = _context(team)
     now = datetime.now(UTC)
-    if period is not None:
-        chosen = next((p for p in periods if p.number == period), None)
-    elif current:
-        chosen = current_period(periods, now)
-    else:
-        chosen = next_period(periods, now)
-    if chosen is None:
-        console.print(f"[red]No matching roster period[/] (known: {periods[0].number}–{periods[-1].number}).")
-        raise typer.Exit(1)
     try:
-        games = NhlClient(http, date.today()).schedule(chosen.start, chosen.end)
+        chosen = choose_period(ctx.conn, period, current, now)
+        games = ctx.games(chosen)
+    except ContextError as e:
+        _fail(e)
     except FetchError as e:
         console.print(f"[bold red]Couldn't load the NHL schedule:[/] {e}")
         raise typer.Exit(1) from e
     finally:
-        http.close()
-    return settings, conn, row, chosen, games, now
+        ctx.http.close()
+    return ctx.settings, ctx.conn, ctx.me, chosen, games, now
 
 
 @app.command()
@@ -348,12 +344,18 @@ def lineup(
     current: bool = typer.Option(False, "--current", help="Show the period in progress (already locked)."),
     out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
     team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+    ai: bool = typer.Option(False, "--ai", help="Use AI news flags: players reported out are benched."),
+    play: list[str] = typer.Option(
+        None, "--play", help="With --ai: ignore an AI 'out' flag for this player (repeatable)."
+    ),
 ) -> None:
     """Recommend the best lineup for a weekly lock: games scheduled, goalie starts, availability."""
     from hockey.lineup.report import build_report
-    from hockey.views.tables import lineup_tables
+    from hockey.views.tables import lineup_tables, news_table
 
     settings, conn, row, chosen, games, now = _team_period_games(team, period, current)
+    news = _news(conn, settings) if ai else None
+    news_outs = _news_outs(news, play)
     league_roster = settings.league.get("roster") or {}
     report = build_report(
         Valuer(conn, load_rules(conn), settings.league),
@@ -364,11 +366,21 @@ def lineup(
         slots=league_roster.get("active") or None,
         reserve_max=league_roster.get("reserve", 6),
         ir_max=league_roster.get("injured_reserve", 3),
+        news_outs=news_outs,
     )
     if not games:
         console.print(f"[yellow]No regular-season NHL games in period {chosen.number}.[/]")
     for part in lineup_tables(row["name"], report, now):
         console.print(part)
+    if news:
+        names = {w.row.name for w in report.starters + report.bench + report.others}
+        t = news_table(news, names, "AI news for your roster (judgment from news, not the engine)")
+        console.print(t or "[dim]AI news: nothing reported for your roster.[/]")
+        if news_outs:
+            console.print(
+                f"[bold]Benched as out per AI news:[/] {', '.join(news_outs)}. "
+                "Override with `--play NAME` if you know better."
+            )
 
 
 @app.command()
@@ -381,6 +393,7 @@ def waivers(
     period: int = typer.Option(None, help="Roster period for the weekly numbers (default: the next lock)."),
     max_ros_cost: float = typer.Option(10.0, help="Streamers: most rest-of-season points a drop may cost."),
     team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
+    ai: bool = typer.Option(False, "--ai", help="Show AI news flags for the players in this report."),
 ) -> None:
     """Best free-agent pickups vs your weakest players, and streamers for the coming week."""
     from hockey.keepers import load_keepers
@@ -405,41 +418,25 @@ def waivers(
     )
     for part in waiver_tables(row["name"], report):
         console.print(part)
+    if ai:
+        from hockey.views.tables import news_table
 
-
-def _ages_this_season(conn) -> dict[int, float]:
-    """NHL id -> age at the start of this season, from birth dates stored with the NHL rosters."""
-    from hockey.keeper.aging import age_on, season_start
-    from hockey.sources.nhl import current_season
-
-    start = season_start(current_season(date.today()) // 10000)
-    ages = {}
-    for r in conn.execute("SELECT nhl_id, birth_date FROM nhl_player WHERE birth_date IS NOT NULL"):
-        age = age_on(r["birth_date"], start)
-        if age is not None:
-            ages[r["nhl_id"]] = age
-    return ages
+        news = _news(conn, settings)
+        opts = report.pickups + report.streamers + [p.best for p in report.by_position if p.best]
+        names = {o.pickup.row.name for o in opts} | {o.drop.row.name for o in opts if o.drop}
+        names |= {p.row.name for p in report.depth}
+        t = news_table(news, names, "AI news for these players (judgment from news, not the engine)")
+        console.print(t or "[dim]AI news: nothing reported for the players above.[/]")
 
 
 def _resolve(names: str, rows, where: str):
     """Comma-separated names (or Fantrax ids) -> RosterRows from ``rows``; exits on unknown/ambiguous."""
-    from hockey.idmap.normalize import basic
+    from hockey.context import ContextError, resolve
 
-    out = []
-    for raw in [n.strip() for n in names.split(",") if n.strip() and n.strip() != "-"]:
-        by_id = [r for r in rows if r.fantrax_id == raw]
-        exact = [r for r in rows if basic(r.name) == basic(raw)]
-        partial = [r for r in rows if basic(raw) in basic(r.name)]
-        found = by_id or exact or partial
-        if not found:
-            console.print(f"[red]No player matching {raw!r} {where}.[/]")
-            raise typer.Exit(1)
-        if len(found) > 1:
-            listing = "; ".join(f"{r.name} ({r.owner}, {r.fantrax_id})" for r in found[:8])
-            console.print(f"[red]{raw!r} is ambiguous {where}:[/] {listing}. Use the Fantrax id.")
-            raise typer.Exit(1)
-        out.append(found[0])
-    return out
+    try:
+        return resolve(names, rows, where)
+    except ContextError as e:
+        _fail(e)
 
 
 @app.command()
@@ -461,65 +458,21 @@ def trade(
     team: str = typer.Option(None, help="Your team (default: MY_TEAM_NAME)."),
 ) -> None:
     """Evaluate a proposed trade for both sides: roster fit, scarcity, keeper and pick value."""
-    from hockey.keepers import load_keepers
-    from hockey.trade.analyze import Pick, TradeError, analyze
+    from hockey.context import ContextError
     from hockey.views.tables import trade_tables
 
-    settings, conn, http = _open()
-    if team:
-        settings.my_team_name, settings.my_team_short = team, team
-    me = find_my_team(conn, settings)
-    if me is None:
-        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
-        raise typer.Exit(1)
-    valuer = Valuer(conn, load_rules(conn), settings.league)
-    pool = valuer.league_players()
-    mine = valuer.team_roster(me["team_id"])
-    others = [r for r in pool if r.owner not in (me["name"], "FA", "W")]
-    give_rows = _resolve(give, mine, "on your roster")
-    get_rows = _resolve(get, others, "on another team")
-
-    owners = {r.owner for r in get_rows}
-    if partner:
-        prow = conn.execute(
-            "SELECT * FROM fantasy_team WHERE lower(name)=lower(?) OR lower(short_name)=lower(?)",
-            (partner, partner),
-        ).fetchone()
-        if prow is None:
-            console.print(f"[red]No fantasy team {partner!r}.[/]")
-            raise typer.Exit(1)
-        owners.add(prow["name"])
-    if len(owners) != 1:
-        console.print(
-            "[red]Players you receive must all come from one team[/]"
-            if owners
-            else "[red]Name the other team with --partner when you receive only picks.[/]"
-        )
-        raise typer.Exit(1)
-    their_name = owners.pop()
-    their_id = conn.execute("SELECT team_id FROM fantasy_team WHERE name=?", (their_name,)).fetchone()[0]
-    league_cfg = settings.league
+    ctx = _context(team)
     try:
-        report = analyze(
-            mine,
-            valuer.team_roster(their_id),
-            give_rows,
-            get_rows,
-            pool,
-            my_name=me["name"],
-            their_name=their_name,
-            roster_cfg=league_cfg.get("roster") or {},
-            teams=int(league_cfg.get("teams", 10)),
-            regular_keepers=int((league_cfg.get("keepers") or {}).get("regular", 10)),
-            give_picks=[Pick.parse(p) for p in give_pick or []],
-            get_picks=[Pick.parse(p) for p in get_pick or []],
-            keepers=load_keepers(),
+        report = ctx.trade(
+            give,
+            get,
+            give_picks=give_pick,
+            get_picks=get_pick,
+            partner=partner,
             keeper_weight=keeper_weight,
-            ages=_ages_this_season(conn),
         )
-    except TradeError as e:
-        console.print(f"[red]{e}[/]")
-        raise typer.Exit(1) from e
+    except ContextError as e:
+        _fail(e)
     for part in trade_tables(report):
         console.print(part)
 
@@ -531,76 +484,24 @@ def keepers(
     team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
 ) -> None:
     """Rank your players by multi-year keeper value and pick the best 10 + 5 under the league rules."""
-    from hockey.keeper.aging import age_on, season_start
-    from hockey.keeper.plan import Rules, build_candidate, plan
-    from hockey.keepers import load_keepers
-    from hockey.sources.nhl import NhlClient, current_season
-    from hockey.trade.analyze import at_rank, ranked_next_season
     from hockey.views.tables import keeper_tables
 
-    settings, conn, http = _open()
-    if team:
-        settings.my_team_name, settings.my_team_short = team, team
-    me = find_my_team(conn, settings)
-    if me is None:
-        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
-        raise typer.Exit(1)
-    rules = Rules.from_league(settings.league)
-    valuer = Valuer(conn, load_rules(conn), settings.league)
-    roster = valuer.team_roster(me["team_id"])
-    teams = int(settings.league.get("teams", 10))
-    keeper_line = at_rank(ranked_next_season(valuer.league_players()), teams * rules.regular)
-    next_start = season_start(current_season(date.today()) // 10000 + 1)
-    nhl = NhlClient(http, date.today())
-    entries = load_keepers(keepers_file)
-    cands = []
+    ctx = _context(team)
     try:
-        for r in roster:
-            if r.nhl_id:
-                career = nhl.career(r.nhl_id)
-                gp, birth, known = career.gp, career.birth_date, True
-            else:
-                gp, birth, known = 0, None, False
-            cands.append(
-                build_candidate(
-                    r,
-                    age_next=age_on(birth, next_start),
-                    career_gp=gp,
-                    known_career=known,
-                    entry=entries.get(r.fantrax_id),
-                    keeper_line=keeper_line,
-                    rules=rules,
-                    horizon=horizon,
-                )
-            )
+        result = ctx.keeper_plan(horizon, keepers_file)
     except FetchError as e:
         console.print(f"[bold red]Couldn't load NHL career data:[/] {e}")
         raise typer.Exit(1) from e
     finally:
-        http.close()
-    for part in keeper_tables(me["name"], plan(cands, rules, keeper_line), horizon):
+        ctx.http.close()
+    for part in keeper_tables(ctx.me["name"], result, horizon):
         console.print(part)
 
 
 def _league_intel(conn, settings, me):
-    """Build LeagueIntel for my team, with this period's opponent when the schedule is known."""
-    from datetime import datetime
+    from hockey.context import league_intel
 
-    from hockey.db import get_meta
-    from hockey.intel.league import build_intel, opponent_for
-    from hockey.lineup.periods import current_period, next_period, parse_periods
-
-    valuer = Valuer(conn, load_rules(conn), settings.league)
-    teams = conn.execute(
-        "SELECT DISTINCT ft.team_id, ft.name FROM fantasy_team ft JOIN roster_entry re ON re.team_id = ft.team_id"
-    ).fetchall()
-    rosters = {t["team_id"]: (t["name"], valuer.team_roster(t["team_id"])) for t in teams}
-    periods = parse_periods(get_meta(conn, "roster_periods") or [])
-    now = datetime.now(UTC)
-    period = next_period(periods, now) or current_period(periods, now)
-    opp = opponent_for(get_meta(conn, "matchups") or [], period.number, me["team_id"]) if period else None
-    slots = (settings.league.get("roster") or {}).get("active") or None
-    return build_intel(rosters, me["team_id"], slots, opponent_id=opp), period
+    return league_intel(conn, settings, me)
 
 
 @app.command()
@@ -625,6 +526,7 @@ def report(
     do_sync: bool = typer.Option(False, "--sync", help="Refresh all data first (same as `hockey sync`)."),
     out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
     out_dir: Path = typer.Option(None, help="Where to write the report (default: var/reports/)."),
+    ai: bool = typer.Option(False, "--ai", help="Add an AI take: news flags + Claude's read of the report."),
 ) -> None:
     """Write today's markdown report: lineup moves, pickups, streamers and league intel."""
     from datetime import datetime
@@ -640,6 +542,7 @@ def report(
     valuer = Valuer(conn, load_rules(conn), settings.league)
     roster_cfg = settings.league.get("roster") or {}
     errors = []
+    news = _news(conn, settings) if ai else None
     lineup_r = build_report(
         valuer,
         row["team_id"],
@@ -649,19 +552,199 @@ def report(
         slots=roster_cfg.get("active") or None,
         reserve_max=roster_cfg.get("reserve", 6),
         ir_max=roster_cfg.get("injured_reserve", 3),
+        news_outs=_news_outs(news, None),
     )
     waivers_r = build_waivers(valuer, row["team_id"], chosen, games, roster_cfg, keepers=load_keepers())
     league_r, _ = _league_intel(conn, settings, row)
     if not games:
         errors.append(f"No regular-season NHL games in period {chosen.number}.")
-    md = render(
-        row["name"], datetime.now(UTC), lineup=lineup_r, waivers=waivers_r, league=league_r, errors=errors
-    )
+    sections = {"lineup": lineup_r, "waivers": waivers_r, "league": league_r, "errors": errors}
+    md = render(row["name"], datetime.now(UTC), **sections)
+    if ai:
+        md = render(
+            row["name"],
+            datetime.now(UTC),
+            **sections,
+            ai_take=_report_take(conn, settings, row, md, news),
+            news=news,
+        )
     path = write(md, out_dir or REPO_ROOT / "var" / "reports", now)
     console.print(f"[green]Report written:[/] {path}")
     console.print(
         f"Lineup: {lineup_r.gain:+.1f} FP available · pickups: {len(waivers_r.pickups)} · "
         f"streamers: {len(waivers_r.streamers)} · trade ideas: {sum(len(s) for _, s in league_r.partners)}"
+    )
+
+
+def _ai_client(settings, **overrides):
+    """The AI client, or a one-line note and a clean exit when the AI layer is off."""
+    from hockey.ai.client import AiUnavailable, make_client
+
+    try:
+        return make_client(settings.league, **overrides)
+    except AiUnavailable as e:
+        console.print(f"[yellow]{e}[/]")
+        raise typer.Exit(0) from e
+
+
+def _on_tool(name: str, args: dict) -> None:
+    detail = args.get("query") if name == "web_search" else ", ".join(f"{k}={v}" for k, v in args.items())
+    console.print(f"[dim]  → {name}({detail or ''})[/]")
+
+
+def _news(conn, settings, refresh: bool = False, required: bool = False):
+    """Fresh stored AI news flags, or a new news scan when they're stale.
+
+    Without the AI layer: ``required`` exits with the one-line fix; otherwise a note, and None (the
+    command carries on with the numbers alone).
+    """
+    from hockey.ai.client import AiError, AiSettings, AiUnavailable, make_client
+    from hockey.context import ContextError, LeagueContext, my_team
+
+    try:
+        from hockey.ai import news as ai_news  # needs pydantic (the `ai` extra)
+    except ImportError:
+        console.print("[yellow]AI layer off: install it with `uv sync --extra ai`[/]")
+        if required:
+            raise typer.Exit(0) from None
+        return None
+    ttl = AiSettings.from_league(settings.league).news_ttl_hours
+    cached = None if refresh else ai_news.fresh(conn, ttl)
+    if cached:
+        return cached
+    try:
+        client = make_client(settings.league)
+        console.print("[dim]Checking the news for your roster and the top free agents (web search)…[/]")
+        ctx = LeagueContext(settings, conn, None, my_team(conn, settings))
+        return ai_news.scan(ctx, client, on_tool=_on_tool)
+    except AiUnavailable as e:
+        console.print(f"[yellow]{e}[/]" + ("" if required else " (continuing without AI news)"))
+        if required:
+            raise typer.Exit(0) from e
+    except (AiError, ContextError) as e:
+        if required:
+            _fail(e)
+        console.print(f"[yellow]AI news skipped: {e}[/]")
+    return None
+
+
+def _news_outs(news, play: list[str] | None) -> dict[str, str]:
+    if not news:
+        return {}
+    from hockey.ai.news import outs
+
+    return {f["player"]: f["note"] for f in outs(news, play)}
+
+
+def _report_take(conn, settings, me, markdown: str, news) -> str | None:
+    from hockey.ai.client import AiError, AiUnavailable, make_client
+    from hockey.context import LeagueContext
+
+    try:
+        from hockey.ai.take import report_take
+
+        ans = report_take(
+            LeagueContext(settings, conn, None, me), make_client(settings.league), markdown, news
+        )
+    except (AiError, AiUnavailable, ImportError) as e:
+        console.print(f"[yellow]AI take skipped: {e}[/]")
+        return None
+    return ans.text
+
+
+@app.command()
+def ask(
+    question: str = typer.Argument(None, help="Your question. Leave it out for a back-and-forth chat."),
+    web: bool = typer.Option(True, "--web/--no-web", help="Let Claude search recent news (injuries, lines)."),
+    model: str = typer.Option(None, help="Claude model (default: ai.model in data/league.yaml)."),
+    effort: str = typer.Option(None, help="low / medium / high / xhigh / max (default: ai.effort)."),
+    team: str = typer.Option(None, help="Your team (default: MY_TEAM_NAME)."),
+) -> None:
+    """Ask the AI assistant: Claude uses the engine's numbers (via read-only tools) plus news and judgment."""
+    from hockey.ai.agent import converse
+    from hockey.ai.client import AiError
+    from hockey.ai.prompts import system_blocks
+    from hockey.ai.tools import Executor
+    from hockey.sources.moneypuck import CREDIT
+
+    ctx = _context(team)
+    client = _ai_client(ctx.settings, model=model, effort=effort, web_search=False if not web else None)
+    use_web = web and client.settings.web_search
+    system = system_blocks(
+        ctx.league,
+        ctx.valuer.rules,
+        f"The manager's team is {ctx.me['name']}.",
+    )
+    executor = Executor(ctx)
+    messages: list[dict] = []
+    chat = question is None
+    if chat:
+        console.print("[dim]Ask about your lineup, pickups, trades or keepers. Empty line to quit.[/]")
+    try:
+        while True:
+            q = question if not chat else typer.prompt("\nYou", default="", show_default=False)
+            if not q.strip():
+                break
+            if not messages:  # the date goes in the first turn, not the (cached) system prompt
+                q = f"(Today is {date.today():%A %Y-%m-%d}.)\n\n{q}"
+            messages.append({"role": "user", "content": q})
+            try:
+                ans = converse(
+                    client,
+                    system,
+                    messages,
+                    executor,
+                    web=use_web,
+                    on_text=lambda t: console.print(t, end="", markup=False, highlight=False, soft_wrap=True),
+                    on_tool=_on_tool,
+                )
+            except AiError as e:
+                _fail(e)
+            console.print()
+            if ans.truncated:
+                console.print("[yellow]The answer hit the length limit and was cut short.[/]")
+            if ans.sources:
+                console.print("[bold]Sources:[/]")
+                for title, url in ans.sources[:10]:
+                    console.print(f"  • {title}: {url}", markup=False, highlight=False)
+            if executor.uses_moneypuck:
+                console.print(f"[dim]{CREDIT}[/]")
+            console.print(
+                f"[dim]Recommendations only: make any moves yourself on Fantrax. "
+                f"({ans.input_tokens + ans.cache_read_tokens:,} in / {ans.output_tokens:,} out tokens"
+                f"{f', {ans.searches} searches' if ans.searches else ''})[/]"
+            )
+            if not chat:
+                break
+    finally:
+        ctx.http.close()
+
+
+@app.command()
+def news(
+    refresh: bool = typer.Option(False, "--refresh", help="Search again even if the stored flags are fresh."),
+    mine: bool = typer.Option(False, "--mine", help="Only players on your roster."),
+) -> None:
+    """AI news scan: injuries, line/PP changes and goalie starts for your roster and top free agents."""
+    from hockey.context import LeagueContext, my_team
+    from hockey.views.tables import news_table
+
+    settings, conn, http = _open()
+    http.close()
+    result = _news(conn, settings, refresh, required=True)
+    only = None
+    if mine:
+        from hockey.ai.news import watchlist
+
+        ctx = LeagueContext(settings, conn, None, my_team(conn, settings))
+        only = {r.name for r in watchlist(ctx, free_agents=0)}
+    t = news_table(result, only)
+    console.print(t or "[dim]No news flags: nothing notable found for the players checked.[/]")
+    if result.searches:
+        console.print(f"[dim]{result.searches} web searches.[/]")
+    console.print(
+        "[dim]Use them: `hockey lineup --ai` benches players reported out; `hockey waivers --ai` and "
+        "`hockey report --ai` show them. Recommendations only: make any moves yourself on Fantrax.[/]"
     )
 
 

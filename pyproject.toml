@@ -17,8 +17,14 @@ dependencies = [
 [project.scripts]
 hockey = "hockey.cli:app"
 
+[project.optional-dependencies]
+ai = [
+    "anthropic>=1.9.0",
+]
+
 [dependency-groups]
 dev = [
+    "anthropic>=1.9.0",  # so the AI layer's tests run (they never call the API)
     "pytest>=8.0",
     "pytest-socket>=0.7",
     "ruff>=0.6",

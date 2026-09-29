@@ -753,6 +753,46 @@ def intel_tables(league, period=None) -> list:
     return out
 
 
+NEWS_STYLE = {
+    "out": "bold red",
+    "day_to_day": "yellow",
+    "role_up": "green",
+    "role_down": "yellow",
+    "starting_goalie": "cyan",
+    "other": "",
+}
+
+
+def news_table(news, only: set[str] | None = None, title: str | None = None) -> Table | None:
+    """AI news flags (hockey/ai/news.py). ``only``: limit to these player names (accent/case-insensitive)."""
+    from hockey.idmap.normalize import basic
+
+    keep = {basic(n) for n in only} if only is not None else None
+    flags = [f for f in news.flags if keep is None or basic(f["player"]) in keep]
+    if not flags:
+        return None
+    age = news.age_hours()
+    t = Table(
+        title=title or f"AI news flags (checked {age:.0f} h ago; judgment from news, not the engine)",
+        title_justify="left",
+    )
+    for c in ("Player", "Status", "Note", "Source", "As of"):
+        t.add_column(c, overflow="fold")
+    order = list(NEWS_STYLE)
+    for f in sorted(
+        flags, key=lambda f: (order.index(f["status"]) if f["status"] in order else 99, f["player"])
+    ):
+        st = NEWS_STYLE.get(f["status"], "")
+        t.add_row(
+            f["player"],
+            f"[{st}]{f['status']}[/]" if st else f["status"],
+            f["note"],
+            f.get("source_url") or "",
+            f.get("as_of") or "",
+        )
+    return t
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")

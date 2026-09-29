@@ -65,15 +65,20 @@ def build_report(
     slots: dict[str, int] | None = None,
     reserve_max: int = 6,
     ir_max: int = 3,
+    news_outs: dict[str, str] | None = None,
 ) -> LineupReport:
+    """``news_outs``: player name -> reason, for players AI news says won't play (`hockey lineup --ai`)."""
     slots = slots or SLOTS
     out_names = {basic(n) for n in outs or []}
+    news = {basic(n): why for n, why in (news_outs or {}).items()}
     weeks: list[PlayerWeek] = []
     for row in valuer.team_roster(team_id):
         status = (row.status or "").upper()
         reason = None
         if basic(row.name) in out_names:
             reason = "marked out (--out)"
+        elif basic(row.name) in news:
+            reason = f"out per AI news: {news[basic(row.name)]}"
         elif status == IR:
             reason = "in an IR slot"
         av = availability(row.projection, row.nhl_team, games, out_reason=reason)

@@ -123,9 +123,39 @@ def _intel(league, limit: int = 3) -> list[str]:
     return lines + [""]
 
 
+def _ai(take: str | None, news) -> list[str]:
+    lines = ["## AI take", "", "_From Claude: news and judgment on top of the engine's numbers._", ""]
+    if take:
+        lines += [take.strip(), ""]
+    if news and news.flags:
+        lines += [f"**News flags** (checked {news.checked_at.astimezone():%a %H:%M}):", ""]
+        lines += _table(
+            ["Player", "Status", "Note", "Source"],
+            [
+                [
+                    f["player"],
+                    f["status"],
+                    f["note"],
+                    f"[link]({f['source_url']})" if f.get("source_url") else "",
+                ]
+                for f in news.flags
+            ],
+        )
+    return lines
+
+
 def render(
-    team_name: str, now: datetime, *, lineup=None, waivers=None, league=None, errors: list[str] | None = None
+    team_name: str,
+    now: datetime,
+    *,
+    lineup=None,
+    waivers=None,
+    league=None,
+    errors: list[str] | None = None,
+    ai_take: str | None = None,
+    news=None,
 ) -> str:
+    """``ai_take`` / ``news``: the optional AI section (hockey/ai/take.py, hockey/ai/news.py)."""
     lines = [
         f"# {team_name}: daily report, {now.astimezone():%A %B %d, %Y}",
         "",
@@ -136,6 +166,8 @@ def render(
         lines.append(f"> ⚠ {e}")
     if errors:
         lines.append("")
+    if ai_take or (news and news.flags):
+        lines += _ai(ai_take, news)
     if lineup:
         lines += _lineup(lineup, now)
     if waivers:
