@@ -31,6 +31,8 @@ uv run hockey lineup [--period N] [--current] [--out NAME ...]  # best lineup fo
 uv run hockey waivers [--pos D] [--protect NAME ...] [--max-ros-cost 10] [--period N]  # pickups + streamers
 uv run hockey trade "GIVE, ..." "GET, ..." [--give-pick 2027:2] [--get-pick 2027:1] [--partner T] [--keeper-weight 0.5]
 uv run hockey keepers [--horizon 3] [--keepers-file PATH]  # multi-year keeper value + best 10+5 with tags
+uv run hockey intel                            # every team's slot ranks, this week's opponent, trade partners
+uv run hockey report [--sync] [--out NAME ...] [--out-dir DIR]  # daily markdown -> var/reports/YYYY-MM-DD.md
 uv run hockey ids --unmatched | --fuzzy
 uv run hockey import-csv FILE [--team NAME]   # fallback when fxea refuses league data
 uv run hockey validate-scoring FILE           # our engine vs Fantrax FPts, same CSV
@@ -136,6 +138,17 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
   missing from keepers.yaml, or regular slots go unused.
 - The trade analyzer's next-season value is aged one year too (birth dates from NHL rosters).
 
+## League intel + daily report (Phase 7, `hockey/intel/`, `hockey/report/`)
+- Team strength = best starting lineup's ROS FP (lineup DP), split by slot and ranked across the league;
+  top/bottom 30% = strengths/weaknesses. Only Active/Reserve players count.
+- Trade partners = 1-for-1 swaps where both starting lineups gain (> 0.5 FP), searched among each side's 6
+  most useful players to the other; the best swap per player you'd receive is kept. `hockey trade` then
+  adds keeper/pick value and roster space.
+- This week's opponent comes from the stored Fantrax `matchups` for the next (or current) period.
+- `hockey report` renders the lineup, waivers and intel reports as one markdown page (pure rendering in
+  `report/daily.py`; no extra data calls). `--sync` refreshes first. The output is in `var/` (gitignored).
+  Schedule it yourself (cron / launchd), e.g. `15 8 * * * cd REPO && uv run hockey report --sync`.
+
 ## Known fragile points
 1. **fxea league access.** Verified working for Talladega Nights on 2026-09-29: getLeagueInfo
    (10 teams, pool 8,747, 8 skater + 4 goalie scoring codes), getTeamRosters (248 rows), and
@@ -209,7 +222,7 @@ blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed 
 games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
 `lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
-`keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) ·
+`keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) · `intel/league.py` · `report/daily.py` ·
 `sync.py` orchestration · `probe.py` ·
 `views/tables.py` · `cli.py`.
 Canonical stat keys: skater `gp g a pts pm pim ppg ppa ppp shg sha shp gwg otg sog hit blk fow fol tk
@@ -227,4 +240,4 @@ gv toi_min evg evp`; goalie `gp gs w l otl ga sv sa so toi_min g a pts pim`.
    keeper value above the keeper line, draft-pick value, roster overflow, keeper-clock notes.
 6. ✅ Keepers (`hockey keepers`): age curve, keeper clock + tag rules from `data/keepers.yaml`,
    165-GP minors rule from career GP at keeper time, exact best 10 + 5 with tag assignment.
-7. League intel + daily markdown report.
+7. ✅ League intel (`hockey intel`) + daily markdown report (`hockey report`).

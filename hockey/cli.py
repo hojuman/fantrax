@@ -582,6 +582,89 @@ def keepers(
         console.print(part)
 
 
+def _league_intel(conn, settings, me):
+    """Build LeagueIntel for my team, with this period's opponent when the schedule is known."""
+    from datetime import datetime
+
+    from hockey.db import get_meta
+    from hockey.intel.league import build_intel, opponent_for
+    from hockey.lineup.periods import current_period, next_period, parse_periods
+
+    valuer = Valuer(conn, load_rules(conn), settings.league)
+    teams = conn.execute(
+        "SELECT DISTINCT ft.team_id, ft.name FROM fantasy_team ft JOIN roster_entry re ON re.team_id = ft.team_id"
+    ).fetchall()
+    rosters = {t["team_id"]: (t["name"], valuer.team_roster(t["team_id"])) for t in teams}
+    periods = parse_periods(get_meta(conn, "roster_periods") or [])
+    now = datetime.now(UTC)
+    period = next_period(periods, now) or current_period(periods, now)
+    opp = opponent_for(get_meta(conn, "matchups") or [], period.number, me["team_id"]) if period else None
+    slots = (settings.league.get("roster") or {}).get("active") or None
+    return build_intel(rosters, me["team_id"], slots, opponent_id=opp), period
+
+
+@app.command()
+def intel(team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME).")) -> None:
+    """Every team's strengths and weaknesses, and the best trade partners for your needs."""
+    from hockey.views.tables import intel_tables
+
+    settings, conn, http = _open()
+    if team:
+        settings.my_team_name, settings.my_team_short = team, team
+    me = find_my_team(conn, settings)
+    if me is None:
+        console.print(f"[red]Team {settings.my_team_name!r} not found.[/] Run `hockey sync` first.")
+        raise typer.Exit(1)
+    league, period = _league_intel(conn, settings, me)
+    for part in intel_tables(league, period):
+        console.print(part)
+
+
+@app.command()
+def report(
+    do_sync: bool = typer.Option(False, "--sync", help="Refresh all data first (same as `hockey sync`)."),
+    out: list[str] = typer.Option(None, "--out", help="A player who won't play this period (repeatable)."),
+    out_dir: Path = typer.Option(None, help="Where to write the report (default: var/reports/)."),
+) -> None:
+    """Write today's markdown report: lineup moves, pickups, streamers and league intel."""
+    from datetime import datetime
+
+    from hockey.keepers import load_keepers
+    from hockey.lineup.report import build_report
+    from hockey.report.daily import render, write
+    from hockey.waivers.report import build_waivers
+
+    if do_sync:
+        sync(refresh=False, skip_nhl=False, skip_moneypuck=False)
+    settings, conn, row, chosen, games, now = _team_period_games(None, None)
+    valuer = Valuer(conn, load_rules(conn), settings.league)
+    roster_cfg = settings.league.get("roster") or {}
+    errors = []
+    lineup_r = build_report(
+        valuer,
+        row["team_id"],
+        chosen,
+        games,
+        out or [],
+        slots=roster_cfg.get("active") or None,
+        reserve_max=roster_cfg.get("reserve", 6),
+        ir_max=roster_cfg.get("injured_reserve", 3),
+    )
+    waivers_r = build_waivers(valuer, row["team_id"], chosen, games, roster_cfg, keepers=load_keepers())
+    league_r, _ = _league_intel(conn, settings, row)
+    if not games:
+        errors.append(f"No regular-season NHL games in period {chosen.number}.")
+    md = render(
+        row["name"], datetime.now(UTC), lineup=lineup_r, waivers=waivers_r, league=league_r, errors=errors
+    )
+    path = write(md, out_dir or REPO_ROOT / "var" / "reports", now)
+    console.print(f"[green]Report written:[/] {path}")
+    console.print(
+        f"Lineup: {lineup_r.gain:+.1f} FP available · pickups: {len(waivers_r.pickups)} · "
+        f"streamers: {len(waivers_r.streamers)} · trade ideas: {sum(len(s) for _, s in league_r.partners)}"
+    )
+
+
 @app.command("validate-scoring")
 def validate_scoring(
     path: Path = typer.Argument(

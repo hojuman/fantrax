@@ -666,6 +666,93 @@ def keeper_tables(team_name: str, p, horizon: int) -> list:
     return out
 
 
+def _empty_text(empty: dict[str, int]) -> str:
+    return ("empty: " + ", ".join(f"{n} {pos}" for pos, n in empty.items())) if empty else ""
+
+
+def _rank_cell(rank: int, n: int) -> str:
+    cut = max(1, round(n * 0.3))
+    if rank <= cut:
+        return f"[green]{rank}[/]"
+    if rank > n - cut:
+        return f"[red]{rank}[/]"
+    return str(rank)
+
+
+def intel_tables(league, period=None) -> list:
+    """Renderables for LeagueIntel (hockey/intel/league.py)."""
+    n = len(league.teams)
+    slots = list(league.me.by_slot)
+    t = Table(
+        title="League: starting-lineup strength (rest of season) and rank at each slot (1 = best)",
+        title_justify="left",
+    )
+    for col, just in (
+        [("#", "right"), ("Team", "left"), ("Lineup FP", "right")]
+        + [(s, "right") for s in slots]
+        + [("Strengths", "left"), ("Weaknesses", "left")]
+    ):
+        t.add_column(col, justify=just, no_wrap=True)
+    for p in league.teams:
+        name = f"[bold]{p.name}[/]" if p.team_id == league.me.team_id else p.name
+        t.add_row(
+            str(p.overall_rank),
+            name,
+            f"{p.lineup:.0f}",
+            *[_rank_cell(p.ranks[s], n) for s in slots],
+            ", ".join(p.strengths),
+            "; ".join(x for x in [", ".join(p.weaknesses), _empty_text(p.empty)] if x),
+        )
+    out: list = [t]
+
+    me = league.me
+    need = me.weaknesses or [min(me.ranks, key=lambda s: -me.ranks[s])]
+    out.append(
+        f"[bold]You[/] rank {me.overall_rank}/{n}. Strongest: {', '.join(me.strengths) or 'none'} · "
+        f"needs: {', '.join(need)}" + (f" · {_empty_text(me.empty)}" if me.empty else "")
+    )
+
+    if league.opponent:
+        o = league.opponent
+        when = f" in period {period.number}" if period else ""
+        out.append(
+            f"[bold]Opponent{when}:[/] {o.name} (rank {o.overall_rank}/{n}, lineup {o.lineup:.0f} ROS FP "
+            f"vs your {me.lineup:.0f}) · strong at {', '.join(o.strengths) or 'nothing in particular'} · "
+            f"weak at {', '.join(o.weaknesses) or 'nothing in particular'}"
+        )
+
+    s = Table(title="Trade partners: 1-for-1 swaps that improve BOTH starting lineups", title_justify="left")
+    for col, just in [
+        ("Team", "left"),
+        ("You give", "left"),
+        ("You get", "left"),
+        ("Your gain", "right"),
+        ("Their gain", "right"),
+        ("Their needs", "left"),
+    ]:
+        s.add_column(col, justify=just, no_wrap=True)
+    for team, swaps in league.partners:
+        for i, sw in enumerate(swaps):
+            s.add_row(
+                team.name if i == 0 else "",
+                f"{sw.give.name} ({','.join(sw.give.eligible)})",
+                f"{sw.get.name} ({','.join(sw.get.eligible)})",
+                f"{sw.my_gain:+.0f}",
+                f"{sw.their_gain:+.0f}",
+                ", ".join(team.weaknesses) if i == 0 else "",
+            )
+    if not league.partners:
+        s.add_row("[dim]No 1-for-1 swap helps both lineups right now[/]", "", "", "", "", "")
+    out.append(s)
+    out.append(
+        "[dim]Gains are rest-of-season starting-lineup points. Check any idea with `hockey trade GIVE GET` "
+        "(adds keeper value and roster space).[/]"
+    )
+    if league.uses_moneypuck:
+        out.append(f"[dim]{CREDIT}[/]")
+    return out
+
+
 def kv_table(title: str, data: dict) -> Table:
     t = Table(title=title, title_justify="left", show_header=False)
     t.add_column(style="bold")
