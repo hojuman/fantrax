@@ -226,10 +226,10 @@ class LeagueContext:
         except TradeError as e:
             raise ContextError(str(e)) from e
 
-    def keeper_plan(self, horizon: int = 3, keepers_file=None):
-        """Best keeper set for my roster (fetches each player's NHL career line, cached 24 h)."""
+    def keeper_candidates(self, horizon: int = 3, keepers_file=None):
+        """(candidates, rules, keeper line) for my roster; fetches NHL career lines (cached 24 h)."""
         from hockey.keeper.aging import age_on, season_start
-        from hockey.keeper.plan import Rules, build_candidate, plan
+        from hockey.keeper.plan import Rules, build_candidate
         from hockey.keepers import load_keepers
         from hockey.sources.nhl import NhlClient, current_season
         from hockey.trade.analyze import at_rank, ranked_next_season
@@ -260,4 +260,18 @@ class LeagueContext:
                     horizon=horizon,
                 )
             )
-        return plan(cands, rules, keeper_line)
+        return cands, rules, keeper_line
+
+    def keeper_plan(self, horizon: int = 3, keepers_file=None):
+        """Best keeper set for my roster (fetches each player's NHL career line, cached 24 h)."""
+        from hockey.keeper.plan import plan
+
+        return plan(*self.keeper_candidates(horizon, keepers_file))
+
+    def keeper_costs(self, horizon: int = 3) -> dict[str, float | None]:
+        """Fantrax id -> keeper value lost if he's dropped (None = unknown: no NHL record)."""
+        from hockey.keeper.plan import drop_costs
+
+        cands, rules, _ = self.keeper_candidates(horizon)
+        costs: dict[str, float | None] = {c.row.fantrax_id: None for c in cands if c.unknown}
+        return costs | drop_costs(cands, rules)

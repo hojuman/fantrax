@@ -16,14 +16,14 @@
     <tbody>
     {% for c in cands %}{% set e = c.entry %}
       <tr>
-        <td>{% if c.choice == "regular+tag" %}<span class="pill good">Keep + tag</span>{% elif c.choice == "regular" %}<span class="pill good">Keep</span>{% elif c.choice == "minors" %}<span class="pill">Keep (minors)</span>{% else %}<span class="muted">Release</span>{% endif %}</td>
+        <td>{% if c.choice == "regular+tag" %}<span class="pill good">Keep + tag</span>{% elif c.choice == "regular" %}<span class="pill good">Keep</span>{% elif c.choice == "minors" %}<span class="pill">Keep (minors)</span>{% elif c.choice == "unknown" %}<span class="pill warn">? Decide yourself</span>{% else %}<span class="muted">Release</span>{% endif %}</td>
         <td><a href="/player/{{ c.row.fantrax_id }}">{{ c.row.name }}</a></td><td>{{ c.row.positions }}</td>
         <td class="num">{{ c.age | fmt(".0f") if c.age is not none else "?" }}</td>
         <td class="num">{{ c.career_gp }}{% if (c.career_gp_end | round(0)) != c.career_gp %} → {{ c.career_gp_end | fmt(".0f") }}{% endif %}</td>
         <td>{% if c.minors_eligible %}minors (clock off){% elif e.franchise_tag %}tagged, kept {{ e.times_kept }}x{% else %}kept {{ e.times_kept }}x{{ "" if c.in_yaml else " (assumed)" }}{% endif %}</td>
         <td class="num">{{ c.yearly[0] | fmt(".0f") if c.yearly else "–" }}</td>
         <td class="num">{{ c.yearly[-1] | fmt(".0f") if c.yearly else "–" }}</td>
-        <td class="num"><b>{{ c.value | fmt(".0f") if c.choice != "release" else "" }}</b></td>
+        <td class="num"><b>{{ "unknown" if c.unknown else c.value | fmt(".0f") if c.choice != "release" else "" }}</b></td>
         <td class="wrap muted">{{ c.notes | join("; ") }}</td>
       </tr>
     {% endfor %}

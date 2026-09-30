@@ -52,11 +52,15 @@ def _lineup(r, now: datetime) -> list[str]:
     return lines
 
 
+def _keeper_lost(o) -> str:
+    return "–" if o.drop is None else f"{o.keeper_cost:.0f}"
+
+
 def _waivers(w, limit: int = 5) -> list[str]:
     lines = [f"## Waivers ({w.open_spots} open roster spot{'' if w.open_spots == 1 else 's'})", ""]
     if w.pickups:
         lines += _table(
-            ["Pick up", "Pos", "NHL", "ROS FP", "Drop", "ROS gain"],
+            ["Pick up", "Pos", "NHL", "ROS FP", "Drop", "Keeper value lost", "ROS gain"],
             [
                 [
                     o.pickup.row.name + (" (W)" if o.pickup.row.owner == "W" else ""),
@@ -64,6 +68,7 @@ def _waivers(w, limit: int = 5) -> list[str]:
                     o.pickup.row.nhl_team or "",
                     f"{o.pickup.ros:.0f}",
                     o.drop.row.name if o.drop else "(open spot)",
+                    _keeper_lost(o),
                     f"{o.gain:+.1f}",
                 ]
                 for o in w.pickups[:limit]
@@ -80,7 +85,7 @@ def _waivers(w, limit: int = 5) -> list[str]:
     if w.streamers:
         lines += [f"**Streamers for period {w.period.number}:**", ""]
         lines += _table(
-            ["Stream", "Pos", "NHL", "Games", "Drop", "Week gain", "ROS change"],
+            ["Stream", "Pos", "NHL", "Games", "Drop", "Keeper value lost", "Week gain", "ROS change"],
             [
                 [
                     o.pickup.row.name,
@@ -88,6 +93,7 @@ def _waivers(w, limit: int = 5) -> list[str]:
                     o.pickup.row.nhl_team or "",
                     str(o.pickup.avail.games),
                     o.drop.row.name if o.drop else "(open spot)",
+                    _keeper_lost(o),
                     f"{o.gain:+.1f}",
                     f"{o.ros_change:+.0f}",
                 ]

@@ -317,6 +317,27 @@ def _context(team: str | None = None, refresh: bool = False):
         _fail(e)
 
 
+def _team_period(team: str | None, period: int | None, current: bool = False):
+    """LeagueContext (http still open: the caller closes it), the chosen period, its games, now."""
+    from datetime import datetime
+
+    from hockey.context import ContextError, choose_period
+
+    ctx = _context(team)
+    now = datetime.now(UTC)
+    try:
+        chosen = choose_period(ctx.conn, period, current, now)
+        games = ctx.games(chosen)
+    except ContextError as e:
+        ctx.http.close()
+        _fail(e)
+    except FetchError as e:
+        ctx.http.close()
+        console.print(f"[bold red]Couldn't load the NHL schedule:[/] {e}")
+        raise typer.Exit(1) from e
+    return ctx, chosen, games, now
+
+
 def _team_period_games(team: str | None, period: int | None, current: bool = False):
     """Shared by lineup/waivers: my team row, the chosen roster period, and its NHL games."""
     from datetime import datetime
@@ -391,31 +412,36 @@ def waivers(
         None, "--protect", help="Never suggest dropping this player (repeatable)."
     ),
     period: int = typer.Option(None, help="Roster period for the weekly numbers (default: the next lock)."),
-    max_ros_cost: float = typer.Option(10.0, help="Streamers: most rest-of-season points a drop may cost."),
+    max_ros_cost: float = typer.Option(
+        10.0, help="Streamers: most a drop may cost (rest-of-season points + weighted keeper value)."
+    ),
+    keeper_weight: float = typer.Option(
+        0.5, help="Weight of a dropped player's keeper value vs this season's points (as in `trade`)."
+    ),
     team: str = typer.Option(None, help="Team name or short name (default: MY_TEAM_NAME)."),
     ai: bool = typer.Option(False, "--ai", help="Show AI news flags for the players in this report."),
 ) -> None:
-    """Best free-agent pickups vs your weakest players, and streamers for the coming week."""
-    from hockey.keepers import load_keepers
+    """Best free-agent pickups vs your weakest players, and streamers for the coming week.
+
+    Drops are priced with keeper value too (what your best keeper set loses without the player)."""
     from hockey.views.tables import waiver_tables
-    from hockey.waivers.report import build_waivers
 
     if pos and pos.upper() not in ("C", "LW", "RW", "D", "G"):
         console.print("[red]--pos must be one of C, LW, RW, D, G[/]")
         raise typer.Exit(2)
-    settings, conn, row, chosen, games, now = _team_period_games(team, period)
-    report = build_waivers(
-        Valuer(conn, load_rules(conn), settings.league),
-        row["team_id"],
-        chosen,
-        games,
-        settings.league.get("roster") or {},
-        keepers=load_keepers(),
-        protect=protect or [],
-        pos=pos.upper() if pos else None,
-        limit=limit,
-        max_ros_cost=max_ros_cost,
-    )
+    ctx, chosen, games, now = _team_period(team, period)
+    try:
+        report = ctx.waivers(
+            chosen,
+            protect=protect or [],
+            pos=pos.upper() if pos else None,
+            limit=limit,
+            max_ros_cost=max_ros_cost,
+            keeper_weight=keeper_weight,
+        )
+    finally:
+        ctx.http.close()
+    settings, conn, row = ctx.settings, ctx.conn, ctx.me
     for part in waiver_tables(row["name"], report):
         console.print(part)
     if ai:
@@ -531,30 +557,19 @@ def report(
     """Write today's markdown report: lineup moves, pickups, streamers and league intel."""
     from datetime import datetime
 
-    from hockey.keepers import load_keepers
-    from hockey.lineup.report import build_report
     from hockey.report.daily import render, write
-    from hockey.waivers.report import build_waivers
 
     if do_sync:
         sync(refresh=False, skip_nhl=False, skip_moneypuck=False)
-    settings, conn, row, chosen, games, now = _team_period_games(None, None)
-    valuer = Valuer(conn, load_rules(conn), settings.league)
-    roster_cfg = settings.league.get("roster") or {}
+    ctx, chosen, games, now = _team_period(None, None)
+    settings, conn, row = ctx.settings, ctx.conn, ctx.me
     errors = []
     news = _news(conn, settings) if ai else None
-    lineup_r = build_report(
-        valuer,
-        row["team_id"],
-        chosen,
-        games,
-        out or [],
-        slots=roster_cfg.get("active") or None,
-        reserve_max=roster_cfg.get("reserve", 6),
-        ir_max=roster_cfg.get("injured_reserve", 3),
-        news_outs=_news_outs(news, None),
-    )
-    waivers_r = build_waivers(valuer, row["team_id"], chosen, games, roster_cfg, keepers=load_keepers())
+    try:
+        lineup_r = ctx.lineup(chosen, out or [], _news_outs(news, None))
+        waivers_r = ctx.waivers(chosen)
+    finally:
+        ctx.http.close()
     league_r, _ = _league_intel(conn, settings, row)
     if not games:
         errors.append(f"No regular-season NHL games in period {chosen.number}.")

@@ -19,12 +19,13 @@ The best set is found exactly by DP over (regular used, tags used, minors used).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from hockey.keeper.aging import age_factor
 from hockey.keepers import KeeperEntry
 from hockey.valuation import RosterRow
 
+KEEPER_WEIGHT = 0.5  # next-season (keeper) points vs this-season points, in trades and drops alike
 HORIZON = 3
 DISCOUNT = 0.85
 SEASON_GAMES = 82
@@ -64,8 +65,13 @@ class Candidate:
     regular_untagged: float | None  # None = can't be kept this way
     regular_tagged: float | None
     minors: float | None
-    choice: str = "release"  # release / regular / regular+tag / minors
+    choice: str = "release"  # release / regular / regular+tag / minors / unknown
     notes: list[str] = field(default_factory=list)
+
+    @property
+    def unknown(self) -> bool:
+        """No NHL record: his value is missing data, not zero, so the DP doesn't decide for him."""
+        return not self.known_career
 
     @property
     def minors_eligible(self) -> bool:
@@ -195,8 +201,27 @@ def choose(cands: list[Candidate], rules: Rules) -> float:
     return total
 
 
+def _best_total(cands: list[Candidate], rules: Rules) -> float:
+    return choose([replace(c) for c in cands], rules)  # copies: choose() sets .choice
+
+
+def drop_costs(candidates: list[Candidate], rules: Rules) -> dict[str, float]:
+    """Keeper value each player would take with him if dropped: best keeper-set total with him minus
+    without him (0 for someone who'd be released anyway). Unknown (no NHL record) players are left
+    out: callers treat their cost as unknown, not zero."""
+    known = [c for c in candidates if not c.unknown]
+    base = _best_total(known, rules)
+    return {
+        c.row.fantrax_id: max(0.0, base - _best_total([o for o in known if o is not c], rules)) for c in known
+    }
+
+
 def plan(candidates: list[Candidate], rules: Rules, keeper_line: float) -> KeeperPlan:
-    total = choose(candidates, rules)
+    known = [c for c in candidates if not c.unknown]
+    for c in candidates:
+        if c.unknown:
+            c.choice = "unknown"
+    total = choose(known, rules)
     p = KeeperPlan(
         candidates,
         rules,
@@ -220,6 +245,12 @@ def plan(candidates: list[Candidate], rules: Rules, keeper_line: float) -> Keepe
     ]
     if missing:
         p.warnings.append(f"Not in data/keepers.yaml, so assumed never kept by you: {', '.join(missing)}")
+    unknown = [c.row.name for c in candidates if c.unknown]
+    if unknown:
+        p.warnings.append(
+            f"No NHL record, so no projection: {', '.join(unknown)}. Their value is unknown, not zero: "
+            "decide these yourself (each needs one of the minors slots)"
+        )
     if len(p.chosen("regular")) < rules.regular:
         p.warnings.append(
             f"Only {len(p.chosen('regular'))} of {rules.regular} regular keeper slots are worth using: "

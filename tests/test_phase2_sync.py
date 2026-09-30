@@ -59,7 +59,10 @@ def test_preseason_rookie_default(conn, settings):
     full_sync(conn, settings)  # 2026-09-28: no games yet
     v = Valuer(conn, load_rules(conn), settings.league)
     newby = v.project(8485555)
-    assert newby.method == "rookie default" and newby.ros_gp == pytest.approx(0.5 * 82)
+    from hockey.projection.inseason import ON_ROSTER_SHARE
+
+    assert newby.method == "rookie default"
+    assert newby.ros_gp == pytest.approx(ON_ROSTER_SHARE[newby.pos_group] * 82)  # on an NHL roster
     assert "no NHL games" in newby.notes[0]
     mcdavid = v.project(8478402)
     assert 0 < newby.fp_per_gp < mcdavid.fp_per_gp

@@ -49,7 +49,7 @@ def ok(client, url, *texts):
 def test_every_page_renders(web):
     ok(web, "/", "This week", "recommended FP", "Pickups", "You rank", "Recommendations only")
     ok(web, "/lineup?period=2", "Lineup for period 2", "Recommended actives", "Quinn Hughes")
-    ok(web, "/waivers?period=2", "Best pickups", "By position", "Streamers for period 2")
+    ok(web, "/waivers?period=2", "Best pickups", "By position", "Streamers for period 2", "Keeper value lost")
     ok(web, "/rank?pos=D&available=true", "Rankings", "FA")
     ok(web, "/roster", "The Blue Blazers", "Quinn Hughes", "Total")
     ok(web, "/roster?team=Team 03", "Team 03")

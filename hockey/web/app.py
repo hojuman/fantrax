@@ -439,7 +439,7 @@ def create_app(
     def keepers(request: Request, horizon: int = 3):
         def build(ctx):
             p = ctx.keeper_plan(max(1, min(horizon, 5)))
-            order = {"regular+tag": 0, "regular": 1, "minors": 2, "release": 3}
+            order = {"regular+tag": 0, "regular": 1, "minors": 2, "unknown": 3, "release": 4}
             return {
                 "title": "Keepers",
                 "p": p,

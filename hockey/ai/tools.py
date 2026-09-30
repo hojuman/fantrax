@@ -170,6 +170,8 @@ def waiver_options(
 
     def opt(o):
         d = {"pickup": brief(o.pickup.row), "drop": o.drop.row.name if o.drop else None, "gain": _r(o.gain)}
+        if o.drop:
+            d["keeper_value_lost"] = _r(o.keeper_cost)  # future points the drop takes with him
         if o.pickup.row.owner == "W":
             d["on_waivers"] = True  # a claim, not an instant add
         return d

@@ -103,10 +103,19 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
 - **Open spots** = min(effective_max − all rostered, (12 + 6) − Active/Reserve). With an open spot, a
   pickup needs no drop.
 - **Drops**: only Active/Reserve players. IR and Minors players are never suggested. Also protected:
-  `franchise_tag: true` in `data/keepers.yaml` (`hockey/keepers.py`), and `--protect NAME`. Tried
-  drops are the 3 lowest-ROS players plus the lowest per position group, so the run stays fast.
-- **Streamers** may only use a drop that costs ≤ `--max-ros-cost` (default 10) rest-of-season points.
-  Anything held back is summarized in a note.
+  `franchise_tag: true` in `data/keepers.yaml` (`hockey/keepers.py`), `--protect NAME`, and players with
+  no NHL record (keeper value unknown).
+- **Drops cost keeper value too.** `keeper/plan.drop_costs` gives each player's marginal keeper value:
+  the best keeper-set total minus the total without him (0 if he'd be released anyway). It's computed by
+  `LeagueContext.keeper_costs` (career GP from the landing pages, cached 24 h).
+  - Drop candidates are the 3 cheapest by ROS FP + `keeper_weight` × keeper cost, plus the cheapest per
+    position group. `keeper_weight` is `KEEPER_WEIGHT` = 0.5, shared with trades; override with
+    `--keeper-weight`.
+  - A swap whose gain doesn't beat the weighted keeper cost is never suggested. Every drop shows
+    "Keeper value lost". If career data can't load, a note says drops ignore keeper value.
+- **Streamers** may only use a drop that costs ≤ `--max-ros-cost` (default 10): rest-of-season points
+  plus weighted keeper value. Anything held back is summarized in a note ("gain +1.2 this week vs keeper
+  value lost 127").
 - **Pool**: FA/W players with an NHL id. Players with no NHL record (juniors, undrafted prospects,
   ineligible under league rules) are excluded, with a note. W players are marked (a claim, not an
   instant add).
@@ -131,6 +140,8 @@ rank and player views do this whenever `ProjectionV2.uses_moneypuck` is set; kee
 - No age curve yet (Phase 6). Draft picks aren't read from Fantrax (`getDraftPicks` unverified).
 
 ## Keepers (Phase 6, `hockey/keeper/`)
+- **Unknown prospects**: players with no NHL record (no projection, no age) get choice "unknown". They're
+  kept out of the DP and listed in a warning to decide by hand: missing data, not zero value.
 - **Rules**: 10 regular + 5 minors, 4 franchise tags, max 3 keeps per regular player. The clock is off while
   minors-eligible and resets on a trade. A removed tag can never go back on that player, and untagging a
   player kept 3+ times makes him unkeepable (both enforced in `plan.build_candidate`).
@@ -277,7 +288,11 @@ position mean: F/D 25, G 20; means from ≥20-GP players in the latest completed
 `projection/inseason.py` (Phase 2 model, all constants at the top of the file with the rationale in its
 docstring: per-stat stabilization n0 in games, recency bonus 0.5 + 0.5 for the last 30/14 days, goals
 blended 40% toward ixG, TOI/PP-TOI role factors (clipped), goalie SV% regressed by 1,500 shots,
-games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position)
+games share with 20 team games of prior weight, rookie default = 30th-percentile rate at the position;
+small samples < 40 GP in the prior window: games share blended toward `ON_ROSTER_SHARE` (F/D 0.70, G 0.35)
+when on an NHL roster now, and rates regressed toward the rookie baseline instead of the mean, both by
+(1 − GP/40). A 9-GP call-up on an opening-night roster is not a 9-game player. Rookies with no NHL games
+on a roster use `ON_ROSTER_SHARE` too.)
 · `valuation.py` (builds a `ProjectionV2` for any player from the db) ·
 `lineup/` (periods, availability, optimize, report) · `waivers/report.py` · `trade/analyze.py` ·
 `keeper/` (aging, plan) · `keepers.py` (keepers.yaml loader) · `intel/league.py` · `report/daily.py` ·

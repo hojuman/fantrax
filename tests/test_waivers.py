@@ -138,7 +138,8 @@ def test_cli_waivers(tmp_path, monkeypatch, settings):
     c.close()
     games = NhlClient(FakeHttp(), date(2026, 10, 1)).schedule(P2.start, P2.end)
     monkeypatch.setattr(NhlClient, "schedule", lambda self, start, end: games)
-    out = CliRunner().invoke(cli.app, ["waivers", "--period", "2"], env={"COLUMNS": "200"})
+    monkeypatch.setattr(cli, "HttpClient", lambda conn, refresh=False: FakeHttp())  # NHL career lookups
+    out = CliRunner().invoke(cli.app, ["waivers", "--period", "2"], env={"COLUMNS": "220"})
     assert out.exit_code == 0, out.output
     for text in (
         "waiver report",
@@ -148,8 +149,10 @@ def test_cli_waivers(tmp_path, monkeypatch, settings):
         "Games per team this period",
         "make any claims or drops yourself",
         "MoneyPuck.com",
+        "Keeper value lost",
     ):
         assert text in out.output, text
+    assert "Keeper values unavailable" not in out.output
     assert CliRunner().invoke(cli.app, ["waivers", "--pos", "X"]).exit_code == 2
     d = CliRunner().invoke(cli.app, ["waivers", "--period", "2", "--pos", "D"], env={"COLUMNS": "200"})
     assert d.exit_code == 0 and "Juraj Slafkovsky" not in d.output
@@ -162,3 +165,65 @@ def test_open_spot_depth_list_when_nothing_improves_the_lineup(league):
     assert all("C" in p.eligible for p in r.depth)
     full = waivers(*league)  # an LW pickup does help: no depth list needed
     assert full.pickups and full.depth == []
+
+
+# ------------------------------------------------------------------ keeper value on drops
+
+JT_MILLER = "03mil"  # the fixture's cheapest drop
+
+
+def ir_hughes(league):
+    conn, settings, games = league
+    conn.execute(
+        "UPDATE roster_entry SET status='INJURED_RESERVE' WHERE team_id=? AND fantrax_id='05stu'", (MINE,)
+    )
+    return conn, settings, games
+
+
+def test_keeper_value_steers_pickups_away_from_a_prospect(league):
+    plain = waivers(*league, roster=FULL)
+    assert plain.pickups[0].drop.id == JT_MILLER
+    r = waivers(*league, roster=FULL, keeper_costs={JT_MILLER: 400.0})  # more than the pickup is worth
+    assert r.pickups and all(o.drop is None or o.drop.id != JT_MILLER for o in r.pickups)
+    assert r.pickups[0].drop.row.name == "Sebastian Aho" and r.pickups[0].keeper_cost == 0
+
+
+def test_streamers_never_cost_a_keeper(league):
+    conn, settings, games = ir_hughes(league)
+    plain = waivers(conn, settings, games, roster=FULL, max_ros_cost=1000)
+    assert plain.streamers[0].drop.id == JT_MILLER  # the Martone bug: cheapest ROS = default drop
+    r = waivers(conn, settings, games, roster=FULL, max_ros_cost=1000, keeper_costs={JT_MILLER: 127.1})
+    assert r.streamers and all(o.drop.id != JT_MILLER for o in r.streamers)
+    # A small keeper cost is allowed, shown, and charged at the keeper weight.
+    cheap = waivers(conn, settings, games, roster=FULL, max_ros_cost=1000, keeper_costs={JT_MILLER: 2.0})
+    top = cheap.streamers[0]
+    assert top.drop.id == JT_MILLER and top.keeper_cost == 2.0
+    assert top.net == pytest.approx(top.gain - 1.0)
+
+
+def test_no_move_when_the_gain_doesnt_beat_the_keeper_value(league):
+    conn, settings, games = ir_hughes(league)
+    mine = [r.name for r in Valuer(conn, load_rules(conn), settings.league).team_roster(MINE)]
+    others = [n for n in mine if n != "JT Miller"]
+    r = waivers(
+        conn, settings, games, roster=FULL, protect=others, max_ros_cost=1000, keeper_costs={JT_MILLER: 127.1}
+    )
+    assert r.streamers == []
+    note = next(n for n in r.notes if "held back" in n)
+    assert "for JT Miller" in note and "vs keeper value lost 127" in note
+
+
+def test_unknown_keeper_value_is_never_a_drop(league):
+    r = waivers(*league, roster=FULL, keeper_costs={JT_MILLER: None})
+    assert all(o.drop is None or o.drop.id != JT_MILLER for o in r.pickups + r.streamers)
+    assert any("Never suggested as drops" in n and "JT Miller" in n for n in r.notes)
+
+
+def test_context_prices_drops_with_the_keeper_plan(league, settings):
+    from hockey.context import LeagueContext, my_team
+
+    conn, _, games = league
+    ctx = LeagueContext(settings, conn, FakeHttp(), my_team(conn, settings))
+    costs = ctx.keeper_costs()
+    assert set(costs) >= {JT_MILLER} and all(v is None or v >= 0 for v in costs.values())
+    assert costs["07pro"] is None  # the fixture prospect with no NHL record

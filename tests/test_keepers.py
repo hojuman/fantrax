@@ -15,6 +15,7 @@ from hockey.keeper.plan import (
     build_candidate,
     choose,
     discounted,
+    drop_costs,
     plan,
     yearly_values,
 )
@@ -204,3 +205,45 @@ def test_cli_keepers(tmp_path, monkeypatch, settings):
         "MoneyPuck.com",
     ):
         assert text in out.output, text
+
+
+# ------------------------------------------------------------------ drop costs + unknown prospects
+
+
+def test_drop_costs_are_marginal_keeper_value():
+    rules = Rules(regular=2, minors=1, tags=0)
+    star = cand(row("s", fp_rate=2.0), line=10.0)
+    good = cand(row("g", fp_rate=1.5), line=10.0)
+    meh = cand(row("m", fp_rate=1.0), line=10.0)  # third-best regular: released with 2 slots
+    prospect = cand(row("p", fp_rate=0.8), age=20.0, gp=9, line=10.0)  # minors-eligible
+    cands = [star, good, meh, prospect]
+    costs = drop_costs(cands, rules)
+    total = choose([c for c in cands], rules)
+
+    def without(x):
+        return choose([cand(c.row, age=c.age, gp=c.career_gp, line=10.0) for c in cands if c is not x], rules)
+
+    for c in cands:
+        assert costs[c.row.fantrax_id] == pytest.approx(total - without(c))
+    assert costs["m"] == pytest.approx(0.0)  # would be released anyway
+    assert costs["s"] > costs["g"] > 0 and costs["p"] > 0
+    # Losing the star only costs what the released third regular can't replace.
+    assert costs["s"] == pytest.approx(star.regular_untagged - meh.regular_untagged)
+
+
+def test_players_with_no_nhl_record_are_unknown_not_worthless():
+    known = cand(row("k", fp_rate=2.0))
+    ghost = build_candidate(
+        row("u", name="Caleb Desnoyers"),
+        age_next=None,
+        career_gp=0,
+        known_career=False,
+        entry=None,
+        keeper_line=50.0,
+        rules=RULES,
+    )
+    p = plan([known, ghost], RULES, 50.0)
+    assert ghost.unknown and ghost.choice == "unknown"
+    assert any("Caleb Desnoyers" in w and "unknown, not zero" in w for w in p.warnings)
+    costs = drop_costs([known, ghost], RULES)
+    assert "u" not in costs  # callers treat a missing cost as unknown

@@ -25,12 +25,13 @@
   <h2>Best pickups for the rest of the season</h2>
   {% if r.pickups %}
   <table>
-    <thead><tr><th>Pick up</th><th>Pos</th><th>NHL</th><th class="num">FP/GP</th><th class="num">ROS FP</th><th>Drop</th><th class="num">ROS gain</th><th class="num">Games wk</th></tr></thead>
+    <thead><tr><th>Pick up</th><th>Pos</th><th>NHL</th><th class="num">FP/GP</th><th class="num">ROS FP</th><th>Drop</th><th class="num" title="Keeper value the drop takes with him (future points)">Keeper value lost</th><th class="num">ROS gain</th><th class="num">Games wk</th></tr></thead>
     <tbody>
     {% for o in r.pickups %}{% set p = o.pickup %}
       <tr><td><a href="/player/{{ p.row.fantrax_id }}">{{ p.row.name }}</a>{% if p.row.owner == "W" %} <span class="pill warn" title="On waivers: a claim, not an instant add">W</span>{% endif %}</td>
         <td>{{ p.row.positions }}</td><td>{{ p.row.nhl_team or "" }}</td><td class="num">{{ p.row.projection.fp_per_gp | fmt(".2f") }}</td>
         <td class="num">{{ p.ros | fmt(".0f") }}</td><td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td>
+        <td class="num {{ 'warn' if o.drop and o.keeper_cost >= 0.5 }}">{{ o.keeper_cost | fmt(".0f") if o.drop else "–" }}</td>
         <td class="num good"><b>{{ o.gain | signed }}</b></td><td class="num">{{ p.avail.games }}</td></tr>
     {% endfor %}
     </tbody>
@@ -75,11 +76,12 @@
   <h2>Streamers for period {{ r.period.number }}</h2>
   {% if r.streamers %}
   <table>
-    <thead><tr><th>Stream</th><th>Pos</th><th class="num">Games</th><th class="num">Exp FP</th><th>Drop</th><th class="num">Week gain</th><th class="num">ROS change</th></tr></thead>
+    <thead><tr><th>Stream</th><th>Pos</th><th class="num">Games</th><th class="num">Exp FP</th><th>Drop</th><th class="num" title="Keeper value the drop takes with him (future points)">Keeper value lost</th><th class="num">Week gain</th><th class="num">ROS change</th></tr></thead>
     <tbody>
     {% for o in r.streamers %}{% set p = o.pickup %}
       <tr><td>{{ p.row.name }}{% if p.row.owner == "W" %} <span class="pill warn">W</span>{% endif %}</td><td>{{ p.row.positions }}</td><td class="num">{{ games_cell(p) }}</td>
         <td class="num">{{ p.week | fmt }}</td><td>{{ o.drop.row.name if o.drop else "(open spot)" }}</td>
+        <td class="num {{ 'warn' if o.drop and o.keeper_cost >= 0.5 }}">{{ o.keeper_cost | fmt(".0f") if o.drop else "–" }}</td>
         <td class="num good"><b>{{ o.gain | signed }}</b></td><td class="num">{{ o.ros_change | signed(0) }}</td></tr>
     {% endfor %}
     </tbody>

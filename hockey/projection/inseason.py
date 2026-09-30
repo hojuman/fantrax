@@ -23,6 +23,14 @@ posterior shots against, so they stay consistent with each other.
 Rest of season: games remaining for the player's NHL team x the player's share of team games
 (prior share blended with this season's, N_SHARE team games of prior weight).
 Players with no NHL history get a conservative ROOKIE_PERCENTILE rate for their position, labelled as such.
+
+Small samples (hockey/valuation.py): a player with fewer than SMALL_SAMPLE_GP NHL games in the prior
+window (a late-season call-up with 9 GP, say) says little about how often he'll play. His last-season GP
+is a poor games projection, so the share of team games is blended toward a role default:
+ON_ROSTER_SHARE for his position when he's on an NHL roster now, else his own (low) share. The weight on
+his own record is w = sample GP / SMALL_SAMPLE_GP. His rates are regressed toward the rookie baseline
+(ROOKIE_PERCENTILE) instead of the average regular's by the same (1 - w), so a tiny sample isn't
+credited with a regular's scoring. Players with >= SMALL_SAMPLE_GP are unaffected.
 """
 
 from __future__ import annotations
@@ -39,7 +47,10 @@ XG_WEIGHT = 0.4
 SV_PCT_SHOTS = 1500.0
 N_SHARE = 20.0
 ROOKIE_PERCENTILE = 0.30
-ROOKIE_ON_ROSTER_SHARE = 0.5
+SMALL_SAMPLE_GP = 40
+# Typical share of team games for a player carried on an NHL roster (healthy scratches, call-up churn,
+# and a backup goalie's starts).
+ON_ROSTER_SHARE = {"F": 0.70, "D": 0.70, "G": 0.35}
 MIN_GAMES_FOR_ROLE = 3
 ROLE_CLIP = (0.8, 1.25)
 PP_CLIP = (0.6, 1.6)

@@ -365,6 +365,13 @@ def lineup_tables(team_name: str, r, now) -> list:
     return out
 
 
+def _keeper_lost(o) -> str:
+    """Keeper value a suggested drop takes with him (future points; '–' when there's no drop)."""
+    if o.drop is None:
+        return "–"
+    return f"[yellow]{o.keeper_cost:.0f}[/]" if o.keeper_cost >= 0.5 else "0"
+
+
 def _status(owner: str | None) -> str:
     return "[yellow]W[/]" if owner == "W" else "FA"
 
@@ -388,6 +395,7 @@ def waiver_tables(team_name: str, r) -> list:
         ("FP/GP", "right"),
         ("ROS FP", "right"),
         ("Drop", "left"),
+        ("Keeper value lost", "right"),
         ("ROS gain", "right"),
         ("Games wk", "right"),
     ]:
@@ -402,11 +410,12 @@ def waiver_tables(team_name: str, r) -> list:
             f"{p.row.projection.fp_per_gp:.2f}",
             f"{p.ros:.0f}",
             o.drop.row.name if o.drop else "[green](open spot)[/]",
+            _keeper_lost(o),
             f"[bold]{o.gain:+.1f}[/]",
             str(p.avail.games),
         )
     if not r.pickups:
-        t.add_row("[dim]No free agent improves your starting lineup[/]", *[""] * 8)
+        t.add_row("[dim]No free agent improves your starting lineup[/]", *[""] * 9)
     out.append(t)
 
     if r.depth:
@@ -470,6 +479,7 @@ def waiver_tables(team_name: str, r) -> list:
         ("Games", "right"),
         ("Exp FP wk", "right"),
         ("Drop", "left"),
+        ("Keeper value lost", "right"),
         ("Week gain", "right"),
         ("ROS change", "right"),
     ]:
@@ -484,11 +494,12 @@ def waiver_tables(team_name: str, r) -> list:
             _games_cell(p),
             f"{p.week:.1f}",
             o.drop.row.name if o.drop else "[green](open spot)[/]",
+            _keeper_lost(o),
             f"[bold]{o.gain:+.1f}[/]",
             f"{o.ros_change:+.0f}",
         )
     if not r.streamers:
-        s.add_row("[dim]No streamer beats your lineup this week[/]", *[""] * 8)
+        s.add_row("[dim]No streamer beats your lineup this week[/]", *[""] * 9)
     out.append(s)
 
     if r.density:
@@ -605,8 +616,9 @@ def keeper_tables(team_name: str, p, horizon: int) -> list:
         "regular+tag": "[green]Keep + tag[/]",
         "minors": "[cyan]Keep (minors)[/]",
         "release": "[dim]Release[/]",
+        "unknown": "[yellow]? Decide yourself[/]",
     }
-    order = {"regular+tag": 0, "regular": 1, "minors": 2, "release": 3}
+    order = {"regular+tag": 0, "regular": 1, "minors": 2, "unknown": 3, "release": 4}
     t = Table(
         title=f"{team_name}: keeper plan ({horizon}-season value, aged and discounted)", title_justify="left"
     )
@@ -641,7 +653,7 @@ def keeper_tables(team_name: str, p, horizon: int) -> list:
             clock,
             f"{c.yearly[0]:.0f}" if c.yearly else "–",
             f"{c.yearly[-1]:.0f}" if c.yearly else "–",
-            f"{c.value:.0f}" if c.choice != "release" else "",
+            "unknown" if c.unknown else f"{c.value:.0f}" if c.choice != "release" else "",
             "; ".join(c.notes),
         )
     out: list = [t]

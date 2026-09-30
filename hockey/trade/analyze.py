@@ -24,6 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 
 from hockey.keeper.aging import age_factor
+from hockey.keeper.plan import KEEPER_WEIGHT
 from hockey.keepers import KeeperEntry
 from hockey.lineup.optimize import SLOTS
 from hockey.lineup.report import LINEUP_STATUSES, eligible_slots
@@ -31,7 +32,6 @@ from hockey.valuation import RosterRow
 from hockey.waivers.report import open_spots, team_value
 
 SEASON_GAMES = 82
-KEEPER_WEIGHT = 0.5
 WAIVER_LINE_ROSTER_SPOTS = 18  # Active + Reserve: roughly the players a team carries into a season
 
 

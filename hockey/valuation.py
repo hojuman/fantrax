@@ -17,9 +17,10 @@ from hockey.projection.baseline import (
     project_player,
 )
 from hockey.projection.inseason import (
-    ROOKIE_ON_ROSTER_SHARE,
+    ON_ROSTER_SHARE,
     ROOKIE_PERCENTILE,
     SEASON_GAMES,
+    SMALL_SAMPLE_GP,
     ProjectionV2,
     Window,
     blend,
@@ -118,6 +119,28 @@ class Valuer:
         mean_fp = score(self.rules, pos, {**mean, "gp": 1.0}, strict=False).total
         return rookie_rates(mean, mean_fp, self.rookie_fp.get(pos, 0.0))
 
+    def _small_sample(
+        self, prior, pos: str, share: float, on_roster: bool, notes: list[str]
+    ) -> tuple[dict[str, float], float]:
+        """Few NHL games: games from his roster role, rates regressed toward the rookie baseline.
+
+        See SMALL_SAMPLE_GP in projection/inseason.py. Returns (prior rates, prior share).
+        """
+        w = prior.sample_gp / SMALL_SAMPLE_GP
+        role = ON_ROSTER_SHARE.get(pos, 0.7) if on_roster else share
+        new_share = w * share + (1 - w) * max(role, share)
+        mean, rookie = self.means.get(pos, {}), self._rookie_prior(pos)
+        pull = prior.shrink * (1 - w)  # the part of each rate that came from the mean, moved toward rookie
+        rates = {
+            k: max(0.0, v + pull * (rookie.get(k, mean.get(k, 0.0)) - mean.get(k, 0.0))) if k != "gp" else v
+            for k, v in prior.rates.items()
+        }
+        where = "on an NHL roster, so games from that role" if on_roster else "not on an NHL roster"
+        notes.append(
+            f"small NHL sample ({prior.sample_gp} GP): {where}; rates pulled toward a rookie baseline"
+        )
+        return rates, min(1.0, new_share)
+
     def _prior_notes(self, nhl_id: int) -> list[str]:
         if not self.seasons:
             return []
@@ -160,14 +183,16 @@ class Valuer:
         team_gp = self.team_gp.get(team, 0) if in_season else 0
         mp_cur = self.mp.get((nhl_id, self.current)) if nhl_id else None
 
+        on_roster = nhl_id in self.roster_ids
         if prior:
             prior_rates, method = prior.rates, "blend" if season else "prior only"
             prior_share = min(1.0, prior.proj_gp / SEASON_GAMES)
             notes = self._prior_notes(nhl_id)
+            if prior.sample_gp < SMALL_SAMPLE_GP:
+                prior_rates, prior_share = self._small_sample(prior, pos, prior_share, on_roster, notes)
         else:
             prior_rates = self._rookie_prior(pos)
-            on_roster = nhl_id in self.roster_ids
-            prior_share = ROOKIE_ON_ROSTER_SHARE if on_roster else 0.0
+            prior_share = ON_ROSTER_SHARE.get(pos, 0.7) if on_roster else 0.0
             method = "blend (rookie prior)" if season else "rookie default"
             notes = (
                 []
